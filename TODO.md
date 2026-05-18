@@ -14,6 +14,7 @@
 - Track Angel One JWT and refresh token expiry times in broker session storage.
 - Research an API/source for identifying Islamically allowed/Shariah-compliant stocks in India.
 - Add chunked historical candle fetching if charts need more than the current single SmartAPI candle request can reliably return.
+- Fix local GitHub remote/auth before pushing workflow changes from this machine: point `origin` to `https://github.com/shahzad285/StockTrading.git` and use GitHub credentials with workflow permission.
 
 ## Done
 

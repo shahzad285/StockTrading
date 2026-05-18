@@ -170,13 +170,11 @@ public sealed class StockRepository(IDbConnectionFactory connectionFactory) : IS
                       on trade_plans.id = trade_plan_runs.trade_plan_id
                     where trade_plans.stock_id = @StockId
                 ) as TradePlanRunCount,
-                0 as OrderCount,
-                0 as ScalpingCount
+                0 as OrderCount
             """,
             new { StockId = stockId });
 
         deleteCheck.OrderCount = await GetOptionalTableReferenceCountAsync(connection, "orders", stockId);
-        deleteCheck.ScalpingCount = await GetOptionalTableReferenceCountAsync(connection, "scalping", stockId);
         return deleteCheck;
     }
 

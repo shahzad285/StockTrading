@@ -6,14 +6,12 @@ public sealed class StockDeleteCheck
     public int TradePlanCount { get; set; }
     public int TradePlanRunCount { get; set; }
     public int OrderCount { get; set; }
-    public int ScalpingCount { get; set; }
 
     public bool HasDependencies =>
         WatchlistCount > 0 ||
         TradePlanCount > 0 ||
         TradePlanRunCount > 0 ||
-        OrderCount > 0 ||
-        ScalpingCount > 0;
+        OrderCount > 0;
 
     public IReadOnlyList<string> GetMessages()
     {
@@ -22,7 +20,6 @@ public sealed class StockDeleteCheck
         AddMessage(messages, TradePlanCount, "trade plan", "trade plans");
         AddMessage(messages, TradePlanRunCount, "trade plan run", "trade plan runs");
         AddMessage(messages, OrderCount, "order", "orders");
-        AddMessage(messages, ScalpingCount, "scalping entry", "scalping entries");
         return messages;
     }
 
