@@ -211,6 +211,30 @@ public sealed class AccountService(
         }
     }
 
+    public async Task<AccountServiceResult<AccountBalanceResponse>> GetBalanceAsync(
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var balance = await brokerService.GetAccountBalanceAsync();
+            if (balance != null)
+            {
+                return AccountServiceResult<AccountBalanceResponse>.Ok(balance);
+            }
+
+            var message = user.IsInRole(ApplicationRoleNames.SuperAdmin)
+                ? "Broker session expired. Please login to SmartAPI again using TOTP."
+                : "Broker session expired. Please contact admin.";
+
+            return AccountServiceResult<AccountBalanceResponse>.ServiceUnavailable("BROKER_AUTH_FAILED", message);
+        }
+        catch (Exception ex)
+        {
+            return AccountServiceResult<AccountBalanceResponse>.BadRequest("Failed to retrieve account balance", [ex.Message]);
+        }
+    }
+
     private static List<string> ValidateUser(RegisterRequest request)
     {
         var errors = new List<string>();

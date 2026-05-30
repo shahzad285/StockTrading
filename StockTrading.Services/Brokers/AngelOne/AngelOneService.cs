@@ -485,6 +485,49 @@ public class AngelOneService : IBrokerService
         }
     }
 
+    private async Task<AccountBalanceResponse?> GetAccountBalance()
+    {
+        try
+        {
+            if (!await EnsureJwtToken())
+            {
+                return null;
+            }
+
+            SetDefaultHeaders(_jwtToken);
+
+            var response = await _httpClient.GetAsync("/rest/secure/angelbroking/user/v1/getRMS");
+            var content = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                System.Console.WriteLine($"Failed to fetch account balance: {response.StatusCode}");
+                System.Console.WriteLine($"RMS Response Body: {content}");
+                return null;
+            }
+
+            using var jsonDoc = JsonDocument.Parse(content);
+            var root = jsonDoc.RootElement;
+
+            if (!root.TryGetProperty("data", out var dataElement) ||
+                dataElement.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            return new AccountBalanceResponse
+            {
+                Net = GetJsonDecimalProperty(dataElement, "net"),
+                AvailableCash = GetJsonDecimalProperty(dataElement, "availablecash", "availableCash")
+            };
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"Error fetching account balance: {ex.Message}");
+            return null;
+        }
+    }
+
     private async Task<List<StockPrice>> GetCurrentPrices(IEnumerable<WatchlistStock> stocks)
     {
         var stockList = stocks
@@ -1250,6 +1293,11 @@ public class AngelOneService : IBrokerService
     public Task<AccountProfile?> GetProfileAsync()
     {
         return GetProfile();
+    }
+
+    public Task<AccountBalanceResponse?> GetAccountBalanceAsync()
+    {
+        return GetAccountBalance();
     }
 
     public Task<HoldingsResponse> GetHoldingsAsync()

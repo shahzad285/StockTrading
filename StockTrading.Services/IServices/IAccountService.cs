@@ -13,6 +13,7 @@ public interface IAccountService
     Task<AccountServiceResult<MeResponse>> MeAsync(ClaimsPrincipal user, CancellationToken cancellationToken = default);
     Task<AccountServiceResult<object>> SmartApiLoginAsync(SmartApiLoginRequest request, CancellationToken cancellationToken = default);
     Task<AccountServiceResult<AccountProfile>> GetProfileAsync(ClaimsPrincipal user, CancellationToken cancellationToken = default);
+    Task<AccountServiceResult<AccountBalanceResponse>> GetBalanceAsync(ClaimsPrincipal user, CancellationToken cancellationToken = default);
 }
 
 public sealed record AccountServiceResult<T>(

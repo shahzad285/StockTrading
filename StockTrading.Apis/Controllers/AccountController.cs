@@ -56,6 +56,13 @@ public class AccountController : ControllerBase
         return ToActionResult(result, value => new { profile = value });
     }
 
+    [HttpGet("balance")]
+    public async Task<IActionResult> Balance()
+    {
+        var result = await _accountService.GetBalanceAsync(User, HttpContext.RequestAborted);
+        return ToActionResult(result, value => new { balance = value });
+    }
+
     [HttpGet("me")]
     public async Task<IActionResult> Me()
     {

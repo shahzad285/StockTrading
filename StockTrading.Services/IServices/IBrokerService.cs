@@ -7,6 +7,7 @@ public interface IBrokerService
 {
     Task<bool> LoginAsync(string? otp = null);
     Task<AccountProfile?> GetProfileAsync();
+    Task<AccountBalanceResponse?> GetAccountBalanceAsync();
     Task<HoldingsResponse> GetHoldingsAsync();
     Task<List<StockSearchResult>> SearchStocksAsync(string query, StockExchange exchange = StockExchange.NSE);
     Task<List<StockCandle>> GetCandlesAsync(
