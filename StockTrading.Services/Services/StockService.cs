@@ -9,6 +9,7 @@ namespace StockTrading.Services;
 public sealed class StockService(
     IBrokerService brokerService,
     IStockRepository stockRepository,
+    ITradePlanRepository tradePlanRepository,
     IMarketScheduleService marketScheduleService) : IStockService
 {
     public Task<IReadOnlyList<StockListItem>> GetStocksAsync(CancellationToken cancellationToken = default)
@@ -97,7 +98,21 @@ public sealed class StockService(
 
     public async Task<List<StockPrice>> RefreshConfiguredPricesAsync(CancellationToken cancellationToken = default)
     {
-        var stocks = await stockRepository.GetAllAsync(cancellationToken);
+        var tradePlans = await tradePlanRepository.GetAllAsync(cancellationToken);
+        var stocks = tradePlans
+            .GroupBy(tradePlan => tradePlan.StockId)
+            .Select(group => group.First())
+            .Select(tradePlan => new StockListItem
+            {
+                StockId = tradePlan.StockId,
+                Symbol = tradePlan.Symbol,
+                Name = tradePlan.Name,
+                Exchange = tradePlan.Exchange,
+                SymbolToken = tradePlan.SymbolToken,
+                TradingSymbol = tradePlan.TradingSymbol
+            })
+            .ToArray();
+
         var decision = await marketScheduleService.DecideAsync("StockPricePolling", cancellationToken: cancellationToken);
         if (!decision.JobsEnabled)
         {
