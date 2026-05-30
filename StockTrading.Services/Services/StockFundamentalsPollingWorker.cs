@@ -10,6 +10,7 @@ namespace StockTrading.Services;
 public sealed class StockFundamentalsPollingWorker(
     IServiceScopeFactory scopeFactory,
     IOptionsMonitor<FundamentalsPollingSettings> options,
+    IOptionsMonitor<MarketScheduleSettings> marketScheduleOptions,
     ILogger<StockFundamentalsPollingWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -35,12 +36,10 @@ public sealed class StockFundamentalsPollingWorker(
         try
         {
             using var scope = scopeFactory.CreateScope();
-            var marketScheduleService = scope.ServiceProvider.GetRequiredService<IMarketScheduleService>();
-            var decision = await marketScheduleService.DecideAsync("StockFundamentalsPolling", cancellationToken: cancellationToken);
-            if (decision.JobsEnabled)
+            if (IsMarketHoursActive())
             {
                 logger.LogInformation(
-                    "Stock fundamentals polling skipped. Reason: Market is open for price-sensitive jobs.");
+                    "Stock fundamentals polling skipped because stock market hours are active.");
                 return;
             }
 
@@ -58,5 +57,42 @@ public sealed class StockFundamentalsPollingWorker(
         {
             logger.LogWarning(ex, "Stock fundamentals polling failed.");
         }
+    }
+
+    private bool IsMarketHoursActive()
+    {
+        var settings = marketScheduleOptions.CurrentValue;
+        var timeZone = GetTimeZone(settings.TimeZoneId);
+        var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone);
+
+        if (nowLocal.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+        {
+            return false;
+        }
+
+        var localTime = TimeOnly.FromDateTime(nowLocal);
+        var openTime = ParseTime(settings.OpenTime, new TimeOnly(9, 0));
+        var closeTime = ParseTime(settings.CloseTime, new TimeOnly(15, 30));
+
+        return localTime >= openTime && localTime < closeTime;
+    }
+
+    private static TimeZoneInfo GetTimeZone(string timeZoneId)
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+        }
+        catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata");
+        }
+    }
+
+    private static TimeOnly ParseTime(string value, TimeOnly fallback)
+    {
+        return TimeOnly.TryParse(value, out var parsed)
+            ? parsed
+            : fallback;
     }
 }
