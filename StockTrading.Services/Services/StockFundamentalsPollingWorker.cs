@@ -35,6 +35,15 @@ public sealed class StockFundamentalsPollingWorker(
         try
         {
             using var scope = scopeFactory.CreateScope();
+            var marketScheduleService = scope.ServiceProvider.GetRequiredService<IMarketScheduleService>();
+            var decision = await marketScheduleService.DecideAsync("StockFundamentalsPolling", cancellationToken: cancellationToken);
+            if (decision.JobsEnabled)
+            {
+                logger.LogInformation(
+                    "Stock fundamentals polling skipped. Reason: Market is open for price-sensitive jobs.");
+                return;
+            }
+
             var stockFundamentalsService = scope.ServiceProvider.GetRequiredService<IStockFundamentalsService>();
             var updatedCount = await stockFundamentalsService.RefreshMissingProfilesAsync(
                 settings.MaxStocksPerRun,
