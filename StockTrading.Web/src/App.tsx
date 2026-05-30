@@ -1192,11 +1192,21 @@ function App() {
               Status
               <select
                 value={tradePlanForm.status || "Active"}
-                onChange={(event) => setTradePlanForm((current) => ({ ...current, status: event.target.value }))}
+                onChange={(event) =>
+                  setTradePlanForm((current) => ({
+                    ...current,
+                    status: event.target.value as NonNullable<TradePlan["status"]>
+                  }))
+                }
               >
                 <option value="Active">Active</option>
                 <option value="Paused">Paused</option>
-                <option value="Cancelled">Cancelled</option>
+                <option value="Completed" disabled>
+                  Completed
+                </option>
+                <option value="Cancelled" disabled>
+                  Cancelled
+                </option>
               </select>
             </label>
             <label className="checkbox-field">

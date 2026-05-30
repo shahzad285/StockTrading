@@ -1,3 +1,5 @@
+using StockTrading.Common.Enums;
+
 namespace StockTrading.Models;
 
 public class TradePlan
@@ -8,7 +10,7 @@ public class TradePlan
     public decimal SellPrice { get; set; }
     public int Quantity { get; set; } = 1;
     public decimal? MaxBudget { get; set; }
-    public string Status { get; set; } = TradePlanStatuses.Active;
+    public TradePlanStatus Status { get; set; } = TradePlanStatus.Active;
     public bool IsActive { get; set; } = true;
     public bool RepeatEnabled { get; set; } = true;
     public int BuyTriggerCount { get; set; }
@@ -23,11 +25,4 @@ public class TradePlan
     public string Exchange { get; set; } = "NSE";
     public string SymbolToken { get; set; } = "";
     public string TradingSymbol { get; set; } = "";
-}
-
-public static class TradePlanStatuses
-{
-    public const string Active = "Active";
-    public const string Paused = "Paused";
-    public const string Cancelled = "Cancelled";
 }

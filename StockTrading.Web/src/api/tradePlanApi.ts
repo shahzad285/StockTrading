@@ -8,7 +8,7 @@ export type TradePlan = {
   sellPrice: number;
   quantity: number;
   maxBudget?: number | null;
-  status?: string;
+  status?: "Active" | "Paused" | "Completed" | "Cancelled";
   isActive: boolean;
   repeatEnabled: boolean;
   buyTriggerCount?: number;

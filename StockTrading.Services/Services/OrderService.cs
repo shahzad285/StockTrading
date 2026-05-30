@@ -36,7 +36,6 @@ public sealed class OrderService(IBrokerService brokerService) : IOrderService
                 return new PlaceOrderResult(false, Message: "Price must be greater than zero to validate available balance.");
             }
 
-            var requiredAmount = request.Quantity * request.Price;
             var balance = await brokerService.GetAccountBalanceAsync();
 
             if (balance == null)
@@ -44,11 +43,18 @@ public sealed class OrderService(IBrokerService brokerService) : IOrderService
                 return new PlaceOrderResult(false, Message: "Unable to verify available balance. Please login to SmartAPI again.");
             }
 
-            if (balance.AvailableCash < requiredAmount)
+            var affordableQuantity = (int)Math.Floor(balance.AvailableCash / request.Price);
+            if (affordableQuantity <= 0)
             {
                 return new PlaceOrderResult(
                     false,
-                    Message: $"Insufficient available cash. Required: {requiredAmount}, Available: {balance.AvailableCash}.");
+                    Message: "Available cash is not enough to buy one share.");
+            }
+
+            var orderQuantity = Math.Min(request.Quantity, affordableQuantity);
+            if (orderQuantity < request.Quantity)
+            {
+                request = request with { Quantity = orderQuantity };
             }
         }
 

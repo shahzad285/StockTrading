@@ -126,7 +126,7 @@ public sealed class TradePlanRepository(IDbConnectionFactory connectionFactory) 
             join stocks
               on stocks.id = saved_trade_plan.stock_id
             """,
-            tradePlan);
+            ToParameters(tradePlan));
 
         return savedTradePlan;
     }
@@ -200,7 +200,7 @@ public sealed class TradePlanRepository(IDbConnectionFactory connectionFactory) 
             join stocks
               on stocks.id = saved_trade_plan.stock_id
             """,
-            tradePlan);
+            ToParameters(tradePlan));
 
         return savedTradePlan;
     }
@@ -214,5 +214,26 @@ public sealed class TradePlanRepository(IDbConnectionFactory connectionFactory) 
             where id = @Id
             """,
             new { Id = id });
+    }
+
+    private static object ToParameters(TradePlan tradePlan)
+    {
+        return new
+        {
+            tradePlan.Id,
+            tradePlan.StockId,
+            tradePlan.BuyPrice,
+            tradePlan.SellPrice,
+            tradePlan.Quantity,
+            tradePlan.MaxBudget,
+            Status = tradePlan.Status.ToString(),
+            tradePlan.IsActive,
+            tradePlan.RepeatEnabled,
+            tradePlan.Symbol,
+            tradePlan.Name,
+            tradePlan.Exchange,
+            tradePlan.SymbolToken,
+            tradePlan.TradingSymbol
+        };
     }
 }
