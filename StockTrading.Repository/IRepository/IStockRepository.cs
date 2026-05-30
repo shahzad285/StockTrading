@@ -5,7 +5,7 @@ namespace StockTrading.Repository.IRepository;
 
 public interface IStockRepository
 {
-    Task<IReadOnlyList<WatchlistStock>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<StockListItem>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<Stock> UpsertAsync(SaveStockRequest request, CancellationToken cancellationToken = default);
     Task<Stock?> GetByIdAsync(int stockId, CancellationToken cancellationToken = default);
     Task<StockDeleteCheck> GetDeleteCheckAsync(int stockId, CancellationToken cancellationToken = default);

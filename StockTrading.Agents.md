@@ -17,9 +17,8 @@ The app currently supports:
 - OTP-based user login and JWT-authenticated API access.
 - Super-admin broker login for Angel One SmartAPI.
 - Stock master management for NSE/BSE stocks.
-- A single active watchlist of tracked stocks.
-- Watchlist and stock charting using SmartAPI historical candles.
-- Current price refresh for configured/watchlist stocks.
+- Stock charting using SmartAPI historical candles.
+- Current price refresh for saved Stock Master rows.
 - Stock fundamentals enrichment from NSE India, Yahoo Finance, and Tapetide.
 - Trade plan creation, editing, listing, details, and deletion.
 - Broker account balance lookup through Angel One SmartAPI RMS limits.
@@ -36,26 +35,7 @@ The Stock Master is the app's saved universe of known stocks.
 - Stock Master rows are stored in the `stocks` table.
 - Stock fundamentals and classification data are stored separately in
   `stock_profiles`.
-- Deleting a stock is blocked when active dependencies exist, such as watchlist
-  entries, trade plans, trade plan runs, or optional order records.
-
-### Watchlist
-
-The current watchlist implementation is one active tracked-stock list, not multiple
-named lists.
-
-- Watchlist entries are stored in `watchlist`.
-- A watchlist row points to one stock through `stock_id`.
-- Removing from watchlist soft-disables the row by setting `is_active = false`.
-- Re-adding the same stock reactivates the existing watchlist row.
-- The watchlist page also displays profile/fundamental data from
-  `stock_profiles`.
-- Watchlist price samples are stored in `watchlist_data`.
-
-Business interpretation:
-
-- Stock Master means "stocks known to the app."
-- Watchlist means "stocks currently being actively tracked."
+- Deleting a stock is blocked when active dependencies exist, such as trade plans, trade plan runs, or optional order records.
 
 ### Trade Plans
 
@@ -63,7 +43,6 @@ Trade plans represent intended buy/sell setups for a stock.
 
 - Trade plans are stored in `trade_plans`.
 - A trade plan always points to a stock through `stock_id`.
-- A trade plan can optionally point to a watchlist row through `watchlist_id`.
 - The UI can create, edit, view details for, and delete trade plans.
 - Backend trade-plan monitoring and automated execution are not implemented yet.
 - Trade plan runs are modeled in `trade_plan_runs`, but active backend execution
@@ -124,10 +103,10 @@ Important setup:
 
 Registered major services/repositories include:
 
-- Account, stock, order, watchlist, trade plan services.
+- Account, stock, order, and trade plan services.
 - Stock fundamentals and market schedule services.
 - Application user, role, OTP repositories.
-- Stock, stock profile, watchlist, watchlist data, trade plan repositories.
+- Stock, stock profile, and trade plan repositories.
 - Broker session repository and encrypted broker session store.
 - Angel One as the active broker service.
 
@@ -168,22 +147,7 @@ Behavior:
 - Stock save validates symbol, symbol token, and exchange.
 - Stock delete checks dependencies before deleting.
 - Holdings and prices are retrieved through the broker/stock service.
-- Configured prices are based on active watchlist stocks.
-
-#### `WatchlistController`
-
-Routes:
-
-- `GET /Watchlist/stocks`
-- `POST /Watchlist/stocks`
-- `DELETE /Watchlist/stocks/{symbol}`
-- `DELETE /Watchlist/stocks/by-id/{watchlistId}`
-
-Behavior:
-
-- `GET` returns active watchlist entries with stock/profile data.
-- `POST` upserts stock, stock profile basics, and active watchlist row.
-- Delete soft-removes a stock from watchlist.
+- Configured prices are based on saved Stock Master rows.
 
 #### `TradePlanController`
 
@@ -208,7 +172,7 @@ Routes:
 
 Behavior:
 
-- Shared stock search endpoint used by Stock Master, Watchlist, and Trade Plan UI.
+- Shared stock search endpoint used by Stock Master and Trade Plan UI.
 - Shared chart endpoint used wherever stock charting is needed.
 - Search currently supports NSE/BSE with NSE as the default.
 
@@ -239,8 +203,6 @@ Main tables created/maintained by `DapperDatabaseInitializer`:
 - `user_otps`
 - `stocks`
 - `stock_profiles`
-- `watchlist`
-- `watchlist_data`
 - `market_job_decisions`
 - `trade_plans`
 - `trade_plan_runs`
@@ -249,27 +211,17 @@ Main tables created/maintained by `DapperDatabaseInitializer`:
 Important relationships:
 
 - `stock_profiles.stock_id -> stocks.id`
-- `watchlist.stock_id -> stocks.id`
-- `watchlist_data.watchlist_id -> watchlist.id`
-- `watchlist_data.stock_id -> stocks.id`
 - `trade_plans.stock_id -> stocks.id`
-- `trade_plans.watchlist_id -> watchlist.id`
 - `trade_plan_runs.trade_plan_id -> trade_plans.id`
 
 Important uniqueness rules:
 
 - Stocks are unique by `(exchange, symbol_token)`.
 - Stock profiles are unique by `stock_id`.
-- Watchlist rows are unique by `stock_id`.
-- Watchlist data is unique by `(watchlist_id, trading_date)` and also by
-  `(stock_id, trading_date)`.
 
-Historical migration note:
+Historical cleanup note:
 
-- The initializer migrates old `watchlist_items` data into the current `watchlist`
-  table if that old table exists.
-- It also migrates old trade-plan `watchlist_item_id` references into
-  `watchlist_id` when possible.
+- The initializer drops old watchlist tables and trade-plan watchlist columns.
 
 ## Repository And Service Behavior
 
@@ -280,16 +232,8 @@ Historical migration note:
 - Blocks stock deletion when dependent records exist.
 - Searches stocks through the broker.
 - Retrieves chart candles through the broker.
-- Retrieves configured prices from active watchlist rows.
-- Stores daily price samples through `WatchlistDataRepository`.
+- Retrieves configured prices from saved Stock Master rows.
 - Applies market schedule decisions before price calls.
-
-### `WatchlistService`
-
-- Reads active watchlist rows.
-- Normalizes stock identity fields before saving.
-- Saves a watchlist stock through `WatchlistRepository.UpsertAsync`.
-- Deletes by symbol or watchlist id.
 
 ### `TradePlanService`
 
@@ -329,7 +273,7 @@ Historical migration note:
 
 Purpose:
 
-- Refreshes configured/watchlist prices in the background.
+- Refreshes saved Stock Master prices in the background.
 
 Behavior:
 
@@ -337,7 +281,6 @@ Behavior:
 - Skips when market schedule says jobs are disabled.
 - Skips when Angel One broker session is unavailable.
 - Uses `IStockService.RefreshConfiguredPricesAsync`.
-- Persists watchlist daily price samples.
 
 ### `StockFundamentalsPollingWorker`
 
@@ -349,7 +292,7 @@ Behavior:
 
 - Controlled by `FundamentalsPolling` configuration.
 - Processes up to `MaxStocksPerRun`.
-- Pulls from the full `stocks` table, not only the watchlist.
+- Pulls from the full `stocks` table.
 
 ## Frontend Implementation
 
@@ -363,14 +306,12 @@ Main pages:
 
 - `dashboard`
 - `stocks`
-- `watchlists`
 - `tradeplans`
 
 API client modules:
 
 - `accountApi.ts`
 - `stockApi.ts`
-- `watchlistApi.ts`
 - `tradePlanApi.ts`
 - `orderApi.ts`
 
@@ -404,21 +345,6 @@ Capabilities:
 - Open chart.
 - Remove stock if no dependencies block deletion.
 
-### Watchlists Page
-
-The Watchlists page is the active tracked-stock UI.
-
-Capabilities:
-
-- Search stock through `/Common/StockSearch`.
-- Select NSE/BSE stock result.
-- Save to active watchlist.
-- Add optional theme, sector, industry, confidence, and classification reason.
-- Display active tracked stocks.
-- Open details.
-- Open chart.
-- Remove from watchlist by `watchlistId`.
-
 ### Trade Plan Page
 
 Capabilities:
@@ -439,7 +365,7 @@ Current limitation:
 Shared chart behavior:
 
 - Uses `/Common/StockChart`.
-- Opens from Stock Master and Watchlist rows.
+- Opens from Stock Master rows.
 - Uses selected range.
 - Displays candle-derived summary values.
 - Loads one-year candles for 52-week high/low.
@@ -451,11 +377,10 @@ Shared chart behavior:
 - Stock identity should be selected from broker search results instead of manually
   typed wherever the search UI is available.
 - `exchange + symbol_token` is the stable stock identity for upsert behavior.
-- Watchlist removal is soft delete.
 - Stock Master deletion is hard delete only after dependency checks pass.
 - Market-sensitive price refresh should respect market schedule decisions.
 - Background price polling requires an available Angel One broker session.
-- Fundamentals polling should work for all saved stocks, not only watchlist stocks.
+- Fundamentals polling works for all saved stocks.
 - Buy order placement requires enough broker `AvailableCash` for
   `quantity * price`.
 
@@ -466,7 +391,7 @@ From current project notes:
 - Add details for stocks created or recommended by reputable investors/retailers.
 - Plan stock category/type classification using Peter Lynch categories:
   Slow Grower, Stalwart, Fast Grower, Cyclical, Turnaround, and Asset Play.
-- Add realtime or near-realtime price updates for watchlists and trade plans.
+- Add realtime or near-realtime price updates for trade plans.
 - Add backend monitoring for trade plans so planned trades can be checked even when
   the browser is closed.
 - Consider SignalR after backend monitoring exists.

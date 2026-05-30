@@ -1,5 +1,4 @@
 import { apiRequest } from "./apiClient";
-import { WatchlistStock } from "./watchlistApi";
 
 export type HoldingStock = {
   stockName: string;
@@ -48,6 +47,42 @@ export type StockMaster = {
   updatedAtUtc?: string | null;
 };
 
+export type StockListItem = {
+  stockId?: number;
+  symbol: string;
+  name?: string | null;
+  exchange: string;
+  symbolToken: string;
+  tradingSymbol: string;
+  assetType?: string;
+  theme?: string | null;
+  sector?: string | null;
+  industry?: string | null;
+  classificationReason?: string | null;
+  confidenceScore?: number | null;
+  description?: string | null;
+  updatedByNse?: boolean;
+  updatedByYahoo?: boolean;
+  updatedByTapetide?: boolean;
+  dividendYield?: number | null;
+  growthRate?: number | null;
+  debtToEquity?: number | null;
+  peRatio?: number | null;
+  earningsPerShare?: number | null;
+  priceToBook?: number | null;
+  totalRevenue?: number | null;
+  netIncome?: number | null;
+  totalDebt?: number | null;
+  totalCash?: number | null;
+  cashFlow?: number | null;
+  marketCap?: number | null;
+  stockCategory?: string | null;
+  stockCategoryReason?: string | null;
+  stockCategoryConfidence?: number | null;
+  stockCategoryUpdatedAtUtc?: string | null;
+  lastAnalyzedAtUtc?: string | null;
+};
+
 export type StockChartRange = "OneDay" | "OneWeek" | "OneMonth" | "SixMonths" | "OneYear";
 
 export type StockCandle = {
@@ -63,8 +98,8 @@ export async function getHoldings(): Promise<HoldingsResponse> {
   return apiRequest<HoldingsResponse>("/Stock/holdings");
 }
 
-export async function getStocks(): Promise<{ stocks: WatchlistStock[] }> {
-  return apiRequest<{ stocks: WatchlistStock[] }>("/Stock/stocks");
+export async function getStocks(): Promise<{ stocks: StockListItem[] }> {
+  return apiRequest<{ stocks: StockListItem[] }>("/Stock/stocks");
 }
 
 export async function saveStock(stock: StockMaster): Promise<{ stock: StockMaster }> {

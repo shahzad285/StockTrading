@@ -14,22 +14,16 @@ import {
   StockCandle,
   StockChartRange,
   StockExchange,
+  StockListItem,
   StockMaster,
   StockPrice,
   StockSearchResult
 } from "./api/stockApi";
 import { getOrders, OrderDetails } from "./api/orderApi";
 import { deleteTradePlan, getTradePlans, saveTradePlan, searchTradePlanStocks, TradePlan } from "./api/tradePlanApi";
-import {
-  deleteWatchlistStockById,
-  getWatchlistStocks,
-  searchWatchlistStocks,
-  saveWatchlistStock,
-  WatchlistStock
-} from "./api/watchlistApi";
 
 type View = "holdings" | "prices" | "orders";
-type Page = "dashboard" | "stocks" | "watchlists" | "tradeplans";
+type Page = "dashboard" | "stocks" | "tradeplans";
 
 const chartRanges: { label: string; value: StockChartRange }[] = [
   { label: "1D", value: "OneDay" },
@@ -38,20 +32,6 @@ const chartRanges: { label: string; value: StockChartRange }[] = [
   { label: "6M", value: "SixMonths" },
   { label: "1Y", value: "OneYear" }
 ];
-
-const emptyWatchlistStock: WatchlistStock = {
-  symbol: "",
-  name: null,
-  exchange: "NSE",
-  symbolToken: "",
-  tradingSymbol: "",
-  assetType: "Unknown",
-  theme: "",
-  sector: "",
-  industry: "",
-  classificationReason: "",
-  confidenceScore: null
-};
 
 const emptyStockForm: StockMaster = {
   symbol: "",
@@ -256,18 +236,13 @@ function App() {
   const [prices, setPrices] = useState<StockPrice[]>([]);
   const [orders, setOrders] = useState<OrderDetails[]>([]);
   const [page, setPage] = useState<Page>("dashboard");
-  const [stocks, setStocks] = useState<WatchlistStock[]>([]);
+  const [stocks, setStocks] = useState<StockListItem[]>([]);
   const [stockForm, setStockForm] = useState<StockMaster>(emptyStockForm);
   const [stockSearch, setStockSearch] = useState("");
   const [stockSearchResults, setStockSearchResults] = useState<StockSearchResult[]>([]);
   const [isStockSearching, setIsStockSearching] = useState(false);
-  const [watchlistStocks, setWatchlistStocks] = useState<WatchlistStock[]>([]);
-  const [selectedWatchlistForm, setSelectedWatchlistForm] = useState<WatchlistStock>(emptyWatchlistStock);
-  const [watchlistStockSearch, setWatchlistStockSearch] = useState("");
-  const [watchlistStockSearchResults, setWatchlistStockSearchResults] = useState<StockSearchResult[]>([]);
-  const [isWatchlistStockSearching, setIsWatchlistStockSearching] = useState(false);
-  const [stockDetails, setStockDetails] = useState<WatchlistStock | null>(null);
-  const [chartStock, setChartStock] = useState<WatchlistStock | null>(null);
+  const [stockDetails, setStockDetails] = useState<StockListItem | null>(null);
+  const [chartStock, setChartStock] = useState<StockListItem | null>(null);
   const [chartRange, setChartRange] = useState<StockChartRange>("OneMonth");
   const [chartCandles, setChartCandles] = useState<StockCandle[]>([]);
   const [chartYearCandles, setChartYearCandles] = useState<StockCandle[]>([]);
@@ -447,7 +422,7 @@ function App() {
     }
   }
 
-  async function handleDeleteStock(stock: WatchlistStock) {
+  async function handleDeleteStock(stock: StockListItem) {
     if (!stock.stockId) {
       return;
     }
@@ -473,126 +448,7 @@ function App() {
     }
   }
 
-  async function loadWatchlist() {
-    setIsBusy(true);
-    setMessage("");
-
-    try {
-      const result = await getWatchlistStocks();
-      setWatchlistStocks(result.stocks);
-    } catch (error) {
-      setMessageType("error");
-      setMessage(error instanceof Error ? error.message : "Unable to load watchlist.");
-    } finally {
-      setIsBusy(false);
-    }
-  }
-
-  async function handleWatchlistStockSearch() {
-    const query = watchlistStockSearch.trim() || selectedWatchlistForm.symbol.trim();
-    if (!query) {
-      setMessageType("error");
-      setMessage("Enter a stock to search.");
-      return;
-    }
-
-    setIsWatchlistStockSearching(true);
-    setMessage("");
-
-    try {
-      const result = await searchWatchlistStocks(query, selectedWatchlistForm.exchange as StockExchange);
-      setWatchlistStockSearchResults(result.stocks);
-      if (result.stocks.length === 0) {
-        setMessageType("error");
-        setMessage("No stocks found.");
-      }
-    } catch (error) {
-      setMessageType("error");
-      setMessage(error instanceof Error ? error.message : "Unable to search stocks.");
-    } finally {
-      setIsWatchlistStockSearching(false);
-    }
-  }
-
-  function selectWatchlistStock(stock: StockSearchResult) {
-    setSelectedWatchlistForm((current) => ({
-      ...current,
-      symbol: stock.symbol,
-      name: stock.name ?? null,
-      exchange: stock.exchange,
-      symbolToken: stock.symbolToken,
-      tradingSymbol: stock.tradingSymbol
-    }));
-    setWatchlistStockSearch(stock.tradingSymbol || stock.symbol);
-    setWatchlistStockSearchResults([]);
-    setMessage("");
-  }
-
-  async function handleSelectedWatchlistSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!selectedWatchlistForm.symbolToken) {
-      setMessageType("error");
-      setMessage("Search and select a stock first.");
-      return;
-    }
-
-    setIsBusy(true);
-    setMessage("");
-
-    try {
-      await saveWatchlistStock({
-        ...selectedWatchlistForm,
-        assetType: "Unknown",
-        theme: selectedWatchlistForm.theme?.trim() || null,
-        sector: selectedWatchlistForm.sector?.trim() || null,
-        industry: selectedWatchlistForm.industry?.trim() || null,
-        classificationReason: selectedWatchlistForm.classificationReason?.trim() || null,
-        confidenceScore: selectedWatchlistForm.confidenceScore ?? null
-      });
-      const result = await getWatchlistStocks();
-      setWatchlistStocks(result.stocks);
-      setSelectedWatchlistForm(emptyWatchlistStock);
-      setWatchlistStockSearch("");
-      setWatchlistStockSearchResults([]);
-      setMessageType("success");
-      setMessage("Watchlist stock saved.");
-    } catch (error) {
-      setMessageType("error");
-      setMessage(error instanceof Error ? error.message : "Unable to save watchlist stock.");
-    } finally {
-      setIsBusy(false);
-    }
-  }
-
-  async function handleDeleteSelectedWatchlistStock(stock: WatchlistStock) {
-    const watchlistId = stock.watchlistId;
-    if (!watchlistId) {
-      return;
-    }
-
-    const stockName = stock.tradingSymbol || stock.symbol || "this stock";
-    if (!window.confirm(`Remove ${stockName} from Watchlist?`)) {
-      return;
-    }
-
-    setIsBusy(true);
-    setMessage("");
-
-    try {
-      await deleteWatchlistStockById(watchlistId);
-      setWatchlistStocks((current) => current.filter((item) => item.watchlistId !== watchlistId));
-      setMessageType("success");
-      setMessage("Watchlist stock removed.");
-    } catch (error) {
-      setMessageType("error");
-      setMessage(error instanceof Error ? error.message : "Unable to remove watchlist stock.");
-    } finally {
-      setIsBusy(false);
-    }
-  }
-
-  async function loadStockChart(stock: WatchlistStock, range: StockChartRange) {
+  async function loadStockChart(stock: StockListItem, range: StockChartRange) {
     if (!stock.symbolToken) {
       setMessageType("error");
       setMessage("Symbol token is required for chart.");
@@ -617,7 +473,7 @@ function App() {
     }
   }
 
-  async function loadChartYearHighLow(stock: WatchlistStock) {
+  async function loadChartYearHighLow(stock: StockListItem) {
     if (!stock.symbolToken) {
       return;
     }
@@ -634,7 +490,7 @@ function App() {
     }
   }
 
-  function openStockChart(stock: WatchlistStock) {
+  function openStockChart(stock: StockListItem) {
     setChartStock(stock);
     setChartRange("OneMonth");
     setChartCandles([]);
@@ -644,9 +500,8 @@ function App() {
   }
 
   function openHoldingChart(holding: HoldingStock) {
-    const stock: WatchlistStock = {
+    const stock: StockListItem = {
       stockId: 0,
-      watchlistId: 0,
       symbol: holding.stockName || holding.tradingSymbol,
       name: holding.stockName || null,
       exchange: holding.exchange,
@@ -667,7 +522,7 @@ function App() {
     setChartYearCandles([]);
   }
 
-  function openStockDetails(stock: WatchlistStock) {
+  function openStockDetails(stock: StockListItem) {
     setStockDetails(stock);
   }
 
@@ -882,7 +737,6 @@ function App() {
     setTotalProfitLoss(0);
     setStocks([]);
     setStockForm(emptyStockForm);
-    setWatchlistStocks([]);
     setTradePlans([]);
     setTradePlanForm(emptyTradePlan);
     setPage("dashboard");
@@ -891,11 +745,6 @@ function App() {
   function handleRefresh() {
     if (page === "stocks") {
       void loadStocks();
-      return;
-    }
-
-    if (page === "watchlists") {
-      void loadWatchlist();
       return;
     }
 
@@ -926,12 +775,6 @@ function App() {
       void loadDashboard();
     }
   }, [token]);
-
-  useEffect(() => {
-    if (token && page === "watchlists") {
-      void loadWatchlist();
-    }
-  }, [token, page]);
 
   useEffect(() => {
     if (token && page === "stocks") {
@@ -1064,9 +907,6 @@ function App() {
           <button type="button" className={page === "stocks" ? "" : "secondary"} onClick={() => setPage("stocks")}>
             Stocks
           </button>
-          <button type="button" className={page === "watchlists" ? "" : "secondary"} onClick={() => setPage("watchlists")}>
-            Watchlists
-          </button>
           <button type="button" className={page === "tradeplans" ? "" : "secondary"} onClick={() => setPage("tradeplans")}>
             Trade Plan
           </button>
@@ -1082,8 +922,8 @@ function App() {
       {message && <p className={messageType === "success" ? "success-text" : "error-text"}>{message}</p>}
 
       {page === "stocks" && (
-        <section className="watchlists-page">
-          <div className="watchlist-detail">
+        <section className="stocks-page">
+          <div className="stock-detail">
             <div className="section-heading">
               <div>
                 <p className="eyebrow">Stock Master</p>
@@ -1199,201 +1039,6 @@ function App() {
                       Chart
                     </button>
                     <button type="button" className="secondary" onClick={() => void handleDeleteStock(stock)} disabled={isBusy}>
-                      Remove
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {page === "watchlists" && (
-        <section className="watchlists-page">
-          <div className="watchlist-detail">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Smart Watchlist</p>
-                <h2>Tracked stocks</h2>
-              </div>
-            </div>
-
-            <form className="stock-plan-form" onSubmit={handleSelectedWatchlistSubmit}>
-              <div className="stock-search-field">
-                <label>
-                  Search stock
-                  <input
-                    value={watchlistStockSearch}
-                    onChange={(event) => setWatchlistStockSearch(event.target.value)}
-                    placeholder="RELIANCE"
-                  />
-                </label>
-                <label>
-                  Exchange
-                  <select
-                    value={selectedWatchlistForm.exchange}
-                    onChange={(event) => {
-                      setSelectedWatchlistForm((current) => ({
-                        ...current,
-                        exchange: event.target.value,
-                        symbol: "",
-                        symbolToken: "",
-                        tradingSymbol: ""
-                      }));
-                      setWatchlistStockSearchResults([]);
-                    }}
-                  >
-                    <option value="NSE">NSE</option>
-                    <option value="BSE">BSE</option>
-                  </select>
-                </label>
-                <button type="button" onClick={() => void handleWatchlistStockSearch()} disabled={isWatchlistStockSearching}>
-                  {isWatchlistStockSearching ? "Searching..." : "Search"}
-                </button>
-              </div>
-
-              {watchlistStockSearchResults.length > 0 && (
-                <div className="stock-search-results">
-                  {watchlistStockSearchResults.map((stock) => (
-                    <button type="button" key={`${stock.exchange}-${stock.symbolToken}`} onClick={() => selectWatchlistStock(stock)}>
-                      <strong>{stock.tradingSymbol || stock.symbol}</strong>
-                      <span>
-                        {stock.exchange} - {stock.symbolToken}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {selectedWatchlistForm.symbolToken && (
-                <div className="selected-stock-summary">
-                  <div>
-                    <span>Symbol</span>
-                    <strong>{selectedWatchlistForm.symbol}</strong>
-                  </div>
-                  <div>
-                    <span>Trading symbol</span>
-                    <strong>{selectedWatchlistForm.tradingSymbol || "-"}</strong>
-                  </div>
-                  <div>
-                    <span>Exchange</span>
-                    <strong>{selectedWatchlistForm.exchange}</strong>
-                  </div>
-                  <div>
-                    <span>Token</span>
-                    <strong>{selectedWatchlistForm.symbolToken}</strong>
-                  </div>
-                </div>
-              )}
-
-              <label>
-                Theme
-                <input
-                  value={selectedWatchlistForm.theme ?? ""}
-                  onChange={(event) =>
-                    setSelectedWatchlistForm((current) => ({
-                      ...current,
-                      theme: event.target.value
-                    }))
-                  }
-                  placeholder="Banking, Auto, IT"
-                />
-              </label>
-              <label>
-                Sector
-                <input
-                  value={selectedWatchlistForm.sector ?? ""}
-                  onChange={(event) =>
-                    setSelectedWatchlistForm((current) => ({
-                      ...current,
-                      sector: event.target.value
-                    }))
-                  }
-                  placeholder="Optional"
-                />
-              </label>
-              <label>
-                Industry
-                <input
-                  value={selectedWatchlistForm.industry ?? ""}
-                  onChange={(event) =>
-                    setSelectedWatchlistForm((current) => ({
-                      ...current,
-                      industry: event.target.value
-                    }))
-                  }
-                  placeholder="Optional"
-                />
-              </label>
-              <label>
-                Confidence
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  value={selectedWatchlistForm.confidenceScore ?? ""}
-                  onChange={(event) =>
-                    setSelectedWatchlistForm((current) => ({
-                      ...current,
-                      confidenceScore: event.target.value ? Number(event.target.value) : null
-                    }))
-                  }
-                  placeholder="0-100"
-                />
-              </label>
-              <label>
-                Classification reason
-                <input
-                  value={selectedWatchlistForm.classificationReason ?? ""}
-                  onChange={(event) =>
-                    setSelectedWatchlistForm((current) => ({
-                      ...current,
-                      classificationReason: event.target.value
-                    }))
-                  }
-                  placeholder="Why this asset type?"
-                />
-              </label>
-              <button type="submit" disabled={isBusy}>
-                Save stock
-              </button>
-            </form>
-
-            <div className="planned-stocks">
-              {watchlistStocks.map((stock) => (
-                <article key={stock.watchlistId || `${stock.exchange}-${stock.symbolToken}`}>
-                  <div>
-                    <strong>{stock.tradingSymbol || stock.symbol}</strong>
-                    <span>
-                      {stock.exchange} · {stock.symbolToken}
-                    </span>
-                  </div>
-                  <div>
-                    <span>Type</span>
-                    <strong>{stock.assetType || "Unknown"}</strong>
-                  </div>
-                  <div>
-                    <span>Theme</span>
-                    <strong>{stock.theme || "-"}</strong>
-                  </div>
-                  <div>
-                    <span>Market cap</span>
-                    <strong>{formatOptionalCrores(stock.marketCap)}</strong>
-                  </div>
-                  <div>
-                    <span>P/E</span>
-                    <strong>{formatOptionalNumber(stock.peRatio)}</strong>
-                  </div>
-                  <div className="row-actions">
-                    <button type="button" className="secondary" onClick={() => openStockDetails(stock)}>
-                      Details
-                    </button>
-                    <button type="button" onClick={() => openStockChart(stock)} disabled={isBusy || !stock.symbolToken}>
-                      Chart
-                    </button>
-                    <button type="button" className="secondary" onClick={() => void handleDeleteSelectedWatchlistStock(stock)} disabled={isBusy}>
                       Remove
                     </button>
                   </div>

@@ -1,8 +1,7 @@
 namespace StockTrading.Common.DTOs;
 
-public class WatchlistStock
+public class StockListItem
 {
-    public int WatchlistId { get; set; }
     public int StockId { get; set; }
     public required string Symbol { get; set; }
     public string? Name { get; set; }

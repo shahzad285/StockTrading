@@ -8,10 +8,10 @@ namespace StockTrading.Repository.Repository;
 
 public sealed class StockRepository(IDbConnectionFactory connectionFactory) : IStockRepository
 {
-    public async Task<IReadOnlyList<WatchlistStock>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<StockListItem>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
-        var stocks = await connection.QueryAsync<WatchlistStock>(
+        var stocks = await connection.QueryAsync<StockListItem>(
             """
             select
                 stocks.id as StockId,
@@ -161,7 +161,6 @@ public sealed class StockRepository(IDbConnectionFactory connectionFactory) : IS
         var deleteCheck = await connection.QuerySingleAsync<StockDeleteCheck>(
             """
             select
-                (select count(*) from watchlist where stock_id = @StockId and is_active = true) as WatchlistCount,
                 (select count(*) from trade_plans where stock_id = @StockId) as TradePlanCount,
                 (
                     select count(*)

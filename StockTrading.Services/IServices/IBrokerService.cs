@@ -16,7 +16,7 @@ public interface IBrokerService
         StockChartInterval interval = StockChartInterval.ONE_DAY,
         DateTime? from = null,
         DateTime? to = null);
-    Task<List<StockPrice>> GetPricesAsync(IEnumerable<WatchlistStock> stocks);
+    Task<List<StockPrice>> GetPricesAsync(IEnumerable<StockListItem> stocks);
     Task<List<OrderDetails>> GetOrdersAsync();
     Task<PlaceOrderResult> PlaceOrderAsync(PlaceOrderRequest request);
     Task<CancelOrderResult> CancelOrderAsync(string brokerOrderId);

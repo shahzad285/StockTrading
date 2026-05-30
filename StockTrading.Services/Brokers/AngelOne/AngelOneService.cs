@@ -428,7 +428,7 @@ public class AngelOneService : IBrokerService
     {
         var prices = await GetCurrentPrices(new[]
         {
-            new WatchlistStock
+            new StockListItem
             {
                 Symbol = symbol,
                 Exchange = "NSE"
@@ -528,7 +528,7 @@ public class AngelOneService : IBrokerService
         }
     }
 
-    private async Task<List<StockPrice>> GetCurrentPrices(IEnumerable<WatchlistStock> stocks)
+    private async Task<List<StockPrice>> GetCurrentPrices(IEnumerable<StockListItem> stocks)
     {
         var stockList = stocks
             .Where(stock => !string.IsNullOrWhiteSpace(stock.Symbol) ||
@@ -681,7 +681,7 @@ public class AngelOneService : IBrokerService
             .ToList();
     }
 
-    private async Task<ScripInstrument?> ResolveInstrument(WatchlistStock stock)
+    private async Task<ScripInstrument?> ResolveInstrument(StockListItem stock)
     {
         var exchange = string.IsNullOrWhiteSpace(stock.Exchange) ? "NSE" : stock.Exchange.Trim().ToUpperInvariant();
         var symbol = string.IsNullOrWhiteSpace(stock.Symbol) ? stock.TradingSymbol : stock.Symbol;
@@ -1178,7 +1178,7 @@ public class AngelOneService : IBrokerService
                 }
             }
 
-            var holdingPrices = await GetCurrentPrices(holdings.Select(holding => new WatchlistStock
+            var holdingPrices = await GetCurrentPrices(holdings.Select(holding => new StockListItem
             {
                 Symbol = string.IsNullOrWhiteSpace(holding.TradingSymbol) ? holding.StockName : holding.TradingSymbol,
                 TradingSymbol = holding.TradingSymbol,
@@ -1384,7 +1384,7 @@ public class AngelOneService : IBrokerService
             .ToList();
     }
 
-    public Task<List<StockPrice>> GetPricesAsync(IEnumerable<WatchlistStock> stocks)
+    public Task<List<StockPrice>> GetPricesAsync(IEnumerable<StockListItem> stocks)
     {
         return GetCurrentPrices(stocks);
     }

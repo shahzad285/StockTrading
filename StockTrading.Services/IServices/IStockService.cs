@@ -6,7 +6,7 @@ namespace StockTrading.IServices;
 
 public interface IStockService
 {
-    Task<IReadOnlyList<WatchlistStock>> GetStocksAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<StockListItem>> GetStocksAsync(CancellationToken cancellationToken = default);
     Task<Stock> SaveStockAsync(SaveStockRequest request, CancellationToken cancellationToken = default);
     Task<StockServiceDeleteResult> DeleteStockAsync(int stockId, CancellationToken cancellationToken = default);
     Task<HoldingsResponse> GetHoldingsAsync(CancellationToken cancellationToken = default);
@@ -22,7 +22,7 @@ public interface IStockService
         DateTime? to = null,
         CancellationToken cancellationToken = default);
     Task<List<StockPrice>> GetConfiguredPricesAsync(CancellationToken cancellationToken = default);
-    Task<List<StockPrice>> GetPricesAsync(IEnumerable<WatchlistStock> stocks, CancellationToken cancellationToken = default);
+    Task<List<StockPrice>> GetPricesAsync(IEnumerable<StockListItem> stocks, CancellationToken cancellationToken = default);
     Task<List<StockPrice>> RefreshConfiguredPricesAsync(CancellationToken cancellationToken = default);
 }
 

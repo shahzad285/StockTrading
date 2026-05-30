@@ -298,11 +298,11 @@ select {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.watchlist-detail .stock-plan-form {
+.stock-detail .stock-plan-form {
   grid-template-columns: repeat(2, minmax(180px, 1fr)) auto;
 }
 
-.watchlist-detail .stock-plan-form > button[type="submit"] {
+.stock-detail .stock-plan-form > button[type="submit"] {
   min-width: 124px;
   white-space: nowrap;
 }
@@ -352,57 +352,20 @@ select {
   margin-top: 4px;
 }
 
-.watchlists-page {
+.stocks-page {
   display: grid;
   gap: 18px;
   grid-template-columns: minmax(0, 1fr);
   margin-top: 18px;
 }
 
-.watchlists-sidebar,
-.watchlist-detail {
+.stock-detail {
   background: #ffffff;
   border: 1px solid #dce5e8;
   border-radius: 8px;
   display: grid;
   gap: 16px;
   padding: 16px;
-}
-
-.watchlists-sidebar {
-  align-content: start;
-}
-
-.watchlist-create-form {
-  display: grid;
-  gap: 10px;
-}
-
-.watchlist-list {
-  display: grid;
-  gap: 8px;
-}
-
-.watchlist-list article {
-  border: 1px solid #edf2f4;
-  border-radius: 6px;
-  display: grid;
-  gap: 8px;
-  grid-template-columns: 1fr auto;
-  padding: 8px;
-}
-
-.watchlist-list article.active {
-  border-color: #146c5f;
-  background: #eef8f5;
-}
-
-.watchlist-list article > button:first-child {
-  background: transparent;
-  color: #172026;
-  font-weight: 800;
-  padding: 0 8px;
-  text-align: left;
 }
 
 .summary-grid article {
@@ -746,7 +709,7 @@ th {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .watchlists-page {
+  .stocks-page {
     grid-template-columns: 1fr;
   }
 

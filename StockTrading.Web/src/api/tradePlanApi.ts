@@ -4,7 +4,6 @@ import { StockExchange, StockSearchResult } from "./stockApi";
 export type TradePlan = {
   id?: number;
   stockId?: number;
-  watchlistId?: number | null;
   buyPrice: number;
   sellPrice: number;
   quantity: number;
