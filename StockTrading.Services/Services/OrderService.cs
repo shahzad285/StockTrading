@@ -1,10 +1,15 @@
 using StockTrading.Common.DTOs;
+using StockTrading.Common.Enums;
 using StockTrading.IServices;
 using StockTrading.Models;
+using StockTrading.Repository.IRepository;
 
 namespace StockTrading.Services;
 
-public sealed class OrderService(IBrokerService brokerService) : IOrderService
+public sealed class OrderService(
+    IBrokerService brokerService,
+    IStockRepository stockRepository,
+    IOrderRepository orderRepository) : IOrderService
 {
     public Task<List<OrderDetails>> GetOrdersAsync(CancellationToken cancellationToken = default)
     {
@@ -24,6 +29,12 @@ public sealed class OrderService(IBrokerService brokerService) : IOrderService
         PlaceOrderRequest request,
         CancellationToken cancellationToken = default)
     {
+        var stock = await ResolveStockAsync(request, cancellationToken);
+        if (stock == null)
+        {
+            return new PlaceOrderResult(false, Message: "Symbol token is required to resolve the stock for order tracking.");
+        }
+
         if (IsBuyOrder(request.TransactionType))
         {
             if (request.Quantity <= 0)
@@ -58,7 +69,36 @@ public sealed class OrderService(IBrokerService brokerService) : IOrderService
             }
         }
 
-        return await brokerService.PlaceOrderAsync(request);
+        var result = await brokerService.PlaceOrderAsync(request);
+        if (result.IsSuccess &&
+            !string.IsNullOrWhiteSpace(result.BrokerOrderId))
+        {
+            var order = await orderRepository.SaveAsync(new Order
+            {
+                StockId = stock.Id,
+                TradePlanId = request.TradePlanId,
+                BrokerOrderId = result.BrokerOrderId,
+                TradingSymbol = string.IsNullOrWhiteSpace(request.TradingSymbol)
+                    ? request.Symbol
+                    : request.TradingSymbol,
+                Exchange = request.Exchange,
+                SymbolToken = request.SymbolToken ?? "",
+                TransactionType = request.TransactionType,
+                OrderType = request.OrderType,
+                ProductType = request.ProductType,
+                Duration = request.Duration,
+                Source = request.Source,
+                Status = OrderStatus.Pending,
+                Quantity = request.Quantity,
+                UnfilledShares = request.Quantity,
+                Price = request.Price,
+                TriggerPrice = request.TriggerPrice ?? 0
+            }, cancellationToken);
+
+            await orderRepository.AddHistoryAsync(CreateHistory(order, OrderEventType.Placed), cancellationToken);
+        }
+
+        return result;
     }
 
     public Task<CancelOrderResult> CancelOrderAsync(
@@ -68,15 +108,83 @@ public sealed class OrderService(IBrokerService brokerService) : IOrderService
         return brokerService.CancelOrderAsync(brokerOrderId);
     }
 
-    public Task<List<OrderHistory>> GetHistoryAsync(
+    public async Task<List<OrderHistory>> GetHistoryAsync(
         string brokerOrderId,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(new List<OrderHistory>());
+        var history = await orderRepository.GetHistoryAsync(brokerOrderId, cancellationToken);
+        return history.ToList();
     }
 
     private static bool IsBuyOrder(string transactionType)
     {
         return string.Equals(transactionType, "BUY", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<Stock?> ResolveStockAsync(
+        PlaceOrderRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.StockId is > 0)
+        {
+            var existingStock = await stockRepository.GetByIdAsync(request.StockId.Value, cancellationToken);
+            if (existingStock != null)
+            {
+                return existingStock;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(request.SymbolToken))
+        {
+            return null;
+        }
+
+        var symbol = request.Symbol.Trim().ToUpperInvariant();
+        var exchange = string.IsNullOrWhiteSpace(request.Exchange)
+            ? "NSE"
+            : request.Exchange.Trim().ToUpperInvariant();
+        var tradingSymbol = string.IsNullOrWhiteSpace(request.TradingSymbol)
+            ? symbol
+            : request.TradingSymbol.Trim().ToUpperInvariant();
+
+        return await stockRepository.UpsertOrderStockAsync(
+            symbol,
+            tradingSymbol,
+            exchange,
+            request.SymbolToken.Trim(),
+            tradingSymbol,
+            cancellationToken);
+    }
+
+    private static OrderHistory CreateHistory(Order order, OrderEventType eventType)
+    {
+        return new OrderHistory
+        {
+            OrderId = order.Id,
+            StockId = order.StockId,
+            TradePlanId = order.TradePlanId,
+            EventType = eventType,
+            BrokerOrderId = order.BrokerOrderId,
+            TradingSymbol = order.TradingSymbol,
+            Exchange = order.Exchange,
+            SymbolToken = order.SymbolToken,
+            TransactionType = order.TransactionType,
+            OrderType = order.OrderType,
+            ProductType = order.ProductType,
+            Duration = order.Duration,
+            Source = order.Source,
+            Status = order.Status,
+            RejectionReason = order.RejectionReason,
+            Quantity = order.Quantity,
+            FilledShares = order.FilledShares,
+            UnfilledShares = order.UnfilledShares,
+            CancelledShares = order.CancelledShares,
+            Price = order.Price,
+            TriggerPrice = order.TriggerPrice,
+            AveragePrice = order.AveragePrice,
+            UpdateTime = order.UpdateTime,
+            ExchangeTime = order.ExchangeTime,
+            ParentBrokerOrderId = order.ParentBrokerOrderId
+        };
     }
 }

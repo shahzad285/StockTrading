@@ -19,11 +19,22 @@ import {
   StockPrice,
   StockSearchResult
 } from "./api/stockApi";
-import { getOrders, OrderDetails } from "./api/orderApi";
+import { getOrders, OrderDetails, placeOrder } from "./api/orderApi";
 import { deleteTradePlan, getTradePlans, saveTradePlan, searchTradePlanStocks, TradePlan } from "./api/tradePlanApi";
 
 type View = "holdings" | "prices" | "orders";
 type Page = "dashboard" | "stocks" | "tradeplans";
+
+type ManualOrderForm = {
+  stockKey: string;
+  transactionType: "BUY" | "SELL";
+  orderType: string;
+  productType: string;
+  duration: string;
+  quantity: number;
+  price: number;
+  triggerPrice: number | null;
+};
 
 const chartRanges: { label: string; value: StockChartRange }[] = [
   { label: "1D", value: "OneDay" },
@@ -44,9 +55,7 @@ const emptyStockForm: StockMaster = {
 const emptyTradePlan: TradePlan = {
   buyPrice: 0,
   sellPrice: 0,
-  quantity: 1,
-  maxBudget: null,
-  status: "Active",
+  maxStocksAllowed: 0,
   isActive: true,
   repeatEnabled: true,
   symbol: "",
@@ -54,6 +63,17 @@ const emptyTradePlan: TradePlan = {
   exchange: "NSE",
   symbolToken: "",
   tradingSymbol: ""
+};
+
+const emptyManualOrderForm: ManualOrderForm = {
+  stockKey: "",
+  transactionType: "BUY",
+  orderType: "LIMIT",
+  productType: "DELIVERY",
+  duration: "DAY",
+  quantity: 1,
+  price: 0,
+  triggerPrice: null
 };
 
 function formatMoney(value: number): string {
@@ -235,6 +255,7 @@ function App() {
   const [holdings, setHoldings] = useState<HoldingStock[]>([]);
   const [prices, setPrices] = useState<StockPrice[]>([]);
   const [orders, setOrders] = useState<OrderDetails[]>([]);
+  const [manualOrderForm, setManualOrderForm] = useState<ManualOrderForm>(emptyManualOrderForm);
   const [page, setPage] = useState<Page>("dashboard");
   const [stocks, setStocks] = useState<StockListItem[]>([]);
   const [stockForm, setStockForm] = useState<StockMaster>(emptyStockForm);
@@ -291,16 +312,18 @@ function App() {
     }
 
     try {
-      const [holdingsResult, pricesResult, ordersResult] = await Promise.all([
+      const [holdingsResult, pricesResult, ordersResult, stocksResult] = await Promise.all([
         getHoldings(),
         getPrices(),
-        getOrders()
+        getOrders(),
+        getStocks()
       ]);
 
       setHoldings(holdingsResult.stocks);
       setTotalProfitLoss(holdingsResult.totalProfitLoss);
       setPrices(pricesResult.prices);
       setOrders(ordersResult.orders);
+      setStocks(stocksResult.stocks);
     } catch (error) {
       setMessageType("error");
       setMessage(error instanceof Error ? error.message : "Unable to load dashboard.");
@@ -609,7 +632,6 @@ function App() {
     try {
       await saveTradePlan({
         ...tradePlanForm,
-        maxBudget: tradePlanForm.maxBudget ?? null,
         tradingSymbol: tradePlanForm.tradingSymbol || tradePlanForm.symbol
       });
       setTradePlanForm(emptyTradePlan);
@@ -627,11 +649,7 @@ function App() {
   }
 
   function handleEditTradePlan(tradePlan: TradePlan) {
-    setTradePlanForm({
-      ...tradePlan,
-      maxBudget: tradePlan.maxBudget ?? null,
-      status: tradePlan.status || "Active"
-    });
+    setTradePlanForm(tradePlan);
     setTradePlanStockSearch(tradePlan.tradingSymbol || tradePlan.symbol);
     setTradePlanStockSearchResults([]);
     setMessage("");
@@ -643,6 +661,65 @@ function App() {
 
   function closeTradePlanDetails() {
     setTradePlanDetails(null);
+  }
+
+  async function handleManualOrderSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const selectedStock = stocks.find((stock) => String(stock.stockId) === manualOrderForm.stockKey);
+    if (!selectedStock) {
+      setMessageType("error");
+      setMessage("Select a stock before placing an order.");
+      return;
+    }
+
+    if (manualOrderForm.quantity <= 0) {
+      setMessageType("error");
+      setMessage("Quantity must be greater than zero.");
+      return;
+    }
+
+    if (manualOrderForm.price <= 0) {
+      setMessageType("error");
+      setMessage("Price must be greater than zero.");
+      return;
+    }
+
+    setIsBusy(true);
+    setMessage("");
+
+    try {
+      const result = await placeOrder({
+        symbol: selectedStock.symbol,
+        exchange: selectedStock.exchange,
+        transactionType: manualOrderForm.transactionType,
+        orderType: manualOrderForm.orderType,
+        productType: manualOrderForm.productType,
+        duration: manualOrderForm.duration,
+        quantity: manualOrderForm.quantity,
+        price: manualOrderForm.price,
+        triggerPrice: manualOrderForm.triggerPrice,
+        symbolToken: selectedStock.symbolToken,
+        tradingSymbol: selectedStock.tradingSymbol || selectedStock.symbol
+      });
+
+      if (!result.isSuccess) {
+        setMessageType("error");
+        setMessage(result.message || "Unable to place order.");
+        return;
+      }
+
+      setManualOrderForm(emptyManualOrderForm);
+      setMessageType("success");
+      setMessage(result.brokerOrderId ? `Order placed: ${result.brokerOrderId}` : "Order placed.");
+      const ordersResult = await getOrders();
+      setOrders(ordersResult.orders);
+    } catch (error) {
+      setMessageType("error");
+      setMessage(error instanceof Error ? error.message : "Unable to place order.");
+    } finally {
+      setIsBusy(false);
+    }
   }
 
   async function handleDeleteTradePlan(id: number) {
@@ -734,6 +811,7 @@ function App() {
     setHoldings([]);
     setPrices([]);
     setOrders([]);
+    setManualOrderForm(emptyManualOrderForm);
     setTotalProfitLoss(0);
     setStocks([]);
     setStockForm(emptyStockForm);
@@ -1031,6 +1109,10 @@ function App() {
                     <span>Symbol</span>
                     <strong>{stock.symbol}</strong>
                   </div>
+                  <div>
+                    <span>Holding</span>
+                    <strong>{stock.holdingQuantity ?? 0}</strong>
+                  </div>
                   <div className="row-actions">
                     <button type="button" className="secondary" onClick={() => openStockDetails(stock)}>
                       Details
@@ -1162,52 +1244,16 @@ function App() {
               />
             </label>
             <label>
-              Quantity
+              Max stocks allowed
               <input
                 type="number"
                 step="1"
                 min="1"
-                value={tradePlanForm.quantity || ""}
-                onChange={(event) => setTradePlanForm((current) => ({ ...current, quantity: Number(event.target.value) }))}
+                value={tradePlanForm.maxStocksAllowed || ""}
+                onChange={(event) => setTradePlanForm((current) => ({ ...current, maxStocksAllowed: Number(event.target.value) }))}
                 placeholder="1"
                 required
               />
-            </label>
-            <label>
-              Max budget
-              <input
-                type="number"
-                step="0.05"
-                value={tradePlanForm.maxBudget ?? ""}
-                onChange={(event) =>
-                  setTradePlanForm((current) => ({
-                    ...current,
-                    maxBudget: event.target.value ? Number(event.target.value) : null
-                  }))
-                }
-                placeholder="Optional"
-              />
-            </label>
-            <label>
-              Status
-              <select
-                value={tradePlanForm.status || "Active"}
-                onChange={(event) =>
-                  setTradePlanForm((current) => ({
-                    ...current,
-                    status: event.target.value as NonNullable<TradePlan["status"]>
-                  }))
-                }
-              >
-                <option value="Active">Active</option>
-                <option value="Paused">Paused</option>
-                <option value="Completed" disabled>
-                  Completed
-                </option>
-                <option value="Cancelled" disabled>
-                  Cancelled
-                </option>
-              </select>
             </label>
             <label className="checkbox-field">
               <input
@@ -1248,12 +1294,12 @@ function App() {
                   <strong>{formatMoney(tradePlan.sellPrice)}</strong>
                 </div>
                 <div>
-                  <span>Qty</span>
-                  <strong>{tradePlan.quantity}</strong>
+                  <span>Max stocks</span>
+                  <strong>{tradePlan.maxStocksAllowed}</strong>
                 </div>
                 <div>
-                  <span>Status</span>
-                  <strong>{tradePlan.status || (tradePlan.isActive ? "Active" : "Paused")}</strong>
+                  <span>Active</span>
+                  <strong>{tradePlan.isActive ? "Yes" : "No"}</strong>
                 </div>
                 <div className="row-actions">
                   <button type="button" className="secondary" onClick={() => openTradePlanDetails(tradePlan)}>
@@ -1316,16 +1362,8 @@ function App() {
                 <strong>{formatMoney(tradePlanDetails.sellPrice)}</strong>
               </div>
               <div>
-                <span>Quantity</span>
-                <strong>{tradePlanDetails.quantity}</strong>
-              </div>
-              <div>
-                <span>Max budget</span>
-                <strong>{tradePlanDetails.maxBudget == null ? "-" : formatMoney(tradePlanDetails.maxBudget)}</strong>
-              </div>
-              <div>
-                <span>Status</span>
-                <strong>{tradePlanDetails.status || (tradePlanDetails.isActive ? "Active" : "Paused")}</strong>
+                <span>Max stocks allowed</span>
+                <strong>{tradePlanDetails.maxStocksAllowed}</strong>
               </div>
               <div>
                 <span>Active</span>
@@ -1704,6 +1742,111 @@ function App() {
 
       {activeView === "orders" && (
         <section className="table-section">
+          <form className="stock-plan-form" onSubmit={handleManualOrderSubmit}>
+            <label>
+              Stock
+              <select
+                value={manualOrderForm.stockKey}
+                onChange={(event) => setManualOrderForm((current) => ({ ...current, stockKey: event.target.value }))}
+                required
+              >
+                <option value="">Select stock</option>
+                {stocks.map((stock) => (
+                  <option key={stock.stockId || `${stock.exchange}-${stock.symbolToken}`} value={stock.stockId}>
+                    {stock.tradingSymbol || stock.symbol} - {stock.exchange}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Side
+              <select
+                value={manualOrderForm.transactionType}
+                onChange={(event) =>
+                  setManualOrderForm((current) => ({
+                    ...current,
+                    transactionType: event.target.value as ManualOrderForm["transactionType"]
+                  }))
+                }
+              >
+                <option value="BUY">BUY</option>
+                <option value="SELL">SELL</option>
+              </select>
+            </label>
+            <label>
+              Quantity
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={manualOrderForm.quantity || ""}
+                onChange={(event) => setManualOrderForm((current) => ({ ...current, quantity: Number(event.target.value) }))}
+                required
+              />
+            </label>
+            <label>
+              Price
+              <input
+                type="number"
+                min="0"
+                step="0.05"
+                value={manualOrderForm.price || ""}
+                onChange={(event) => setManualOrderForm((current) => ({ ...current, price: Number(event.target.value) }))}
+                required
+              />
+            </label>
+            <label>
+              Order type
+              <select
+                value={manualOrderForm.orderType}
+                onChange={(event) => setManualOrderForm((current) => ({ ...current, orderType: event.target.value }))}
+              >
+                <option value="LIMIT">LIMIT</option>
+                <option value="MARKET">MARKET</option>
+                <option value="STOPLOSS_LIMIT">STOPLOSS_LIMIT</option>
+                <option value="STOPLOSS_MARKET">STOPLOSS_MARKET</option>
+              </select>
+            </label>
+            <label>
+              Product
+              <select
+                value={manualOrderForm.productType}
+                onChange={(event) => setManualOrderForm((current) => ({ ...current, productType: event.target.value }))}
+              >
+                <option value="DELIVERY">DELIVERY</option>
+                <option value="INTRADAY">INTRADAY</option>
+              </select>
+            </label>
+            <label>
+              Duration
+              <select
+                value={manualOrderForm.duration}
+                onChange={(event) => setManualOrderForm((current) => ({ ...current, duration: event.target.value }))}
+              >
+                <option value="DAY">DAY</option>
+                <option value="IOC">IOC</option>
+              </select>
+            </label>
+            <label>
+              Trigger price
+              <input
+                type="number"
+                min="0"
+                step="0.05"
+                value={manualOrderForm.triggerPrice ?? ""}
+                onChange={(event) =>
+                  setManualOrderForm((current) => ({
+                    ...current,
+                    triggerPrice: event.target.value ? Number(event.target.value) : null
+                  }))
+                }
+                placeholder="Optional"
+              />
+            </label>
+            <button type="submit" disabled={isBusy || stocks.length === 0}>
+              Place order
+            </button>
+          </form>
           <table>
             <thead>
               <tr>

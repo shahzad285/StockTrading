@@ -117,6 +117,7 @@ builder.Services.AddScoped<IApplicationUserRepository, ApplicationUserRepository
 builder.Services.AddScoped<IApplicationRoleRepository, ApplicationRoleRepository>();
 builder.Services.AddScoped<IApplicationOtpRepository, ApplicationOtpRepository>();
 builder.Services.AddScoped<IStockRepository, StockRepository>();
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<ITradePlanRepository, TradePlanRepository>();
 builder.Services.AddScoped<IStockProfileRepository, StockProfileRepository>();
 builder.Services.AddScoped<IMarketJobDecisionRepository, MarketJobDecisionRepository>();

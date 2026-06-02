@@ -43,9 +43,9 @@ public sealed class TradePlanService(ITradePlanRepository tradePlanRepository) :
             throw new ArgumentException("Sell price must be greater than zero.");
         }
 
-        if (tradePlan.Quantity <= 0)
+        if (tradePlan.MaxStocksAllowed <= 0)
         {
-            throw new ArgumentException("Quantity must be greater than zero.");
+            throw new ArgumentException("Max stocks allowed must be greater than zero.");
         }
 
         return new TradePlan
@@ -54,8 +54,7 @@ public sealed class TradePlanService(ITradePlanRepository tradePlanRepository) :
             StockId = tradePlan.StockId,
             BuyPrice = tradePlan.BuyPrice,
             SellPrice = tradePlan.SellPrice,
-            Quantity = tradePlan.Quantity,
-            MaxBudget = tradePlan.MaxBudget,
+            MaxStocksAllowed = tradePlan.MaxStocksAllowed,
             IsActive = tradePlan.IsActive,
             RepeatEnabled = tradePlan.RepeatEnabled,
             Symbol = tradePlan.Symbol.Trim().ToUpperInvariant(),

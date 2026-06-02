@@ -43,6 +43,7 @@ export type StockMaster = {
   exchange: StockExchange;
   symbolToken: string;
   tradingSymbol: string;
+  holdingQuantity?: number;
   createdAtUtc?: string;
   updatedAtUtc?: string | null;
 };
@@ -54,6 +55,7 @@ export type StockListItem = {
   exchange: string;
   symbolToken: string;
   tradingSymbol: string;
+  holdingQuantity?: number;
   assetType?: string;
   theme?: string | null;
   sector?: string | null;

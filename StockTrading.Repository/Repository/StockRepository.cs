@@ -20,6 +20,7 @@ public sealed class StockRepository(IDbConnectionFactory connectionFactory) : IS
                 stocks.exchange as Exchange,
                 stocks.symbol_token as SymbolToken,
                 stocks.trading_symbol as TradingSymbol,
+                stocks.holding_quantity as HoldingQuantity,
                 coalesce(stock_profiles.asset_type, 'Unknown') as AssetType,
                 stock_profiles.theme as Theme,
                 stock_profiles.sector as Sector,
@@ -78,6 +79,7 @@ public sealed class StockRepository(IDbConnectionFactory connectionFactory) : IS
                     symbol_token as SymbolToken,
                     trading_symbol as TradingSymbol,
                     name as Name,
+                    holding_quantity as HoldingQuantity,
                     created_at_utc as CreatedAtUtc,
                     updated_at_utc as UpdatedAtUtc
                 """,
@@ -122,6 +124,7 @@ public sealed class StockRepository(IDbConnectionFactory connectionFactory) : IS
                 symbol_token as SymbolToken,
                 trading_symbol as TradingSymbol,
                 name as Name,
+                holding_quantity as HoldingQuantity,
                 created_at_utc as CreatedAtUtc,
                 updated_at_utc as UpdatedAtUtc
             """,
@@ -132,6 +135,59 @@ public sealed class StockRepository(IDbConnectionFactory connectionFactory) : IS
                 Exchange = request.Exchange.ToString(),
                 request.SymbolToken,
                 request.TradingSymbol
+            });
+    }
+
+    public async Task<Stock> UpsertOrderStockAsync(
+        string symbol,
+        string? name,
+        string exchange,
+        string symbolToken,
+        string tradingSymbol,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        return await connection.QuerySingleAsync<Stock>(
+            """
+            insert into stocks (
+                symbol,
+                name,
+                exchange,
+                symbol_token,
+                trading_symbol,
+                created_at_utc
+            )
+            values (
+                @Symbol,
+                @Name,
+                @Exchange,
+                @SymbolToken,
+                @TradingSymbol,
+                now()
+            )
+            on conflict (exchange, symbol_token) do update
+            set symbol = excluded.symbol,
+                name = coalesce(excluded.name, stocks.name),
+                trading_symbol = excluded.trading_symbol,
+                updated_at_utc = now()
+            returning
+                id as Id,
+                symbol as Symbol,
+                exchange as Exchange,
+                symbol_token as SymbolToken,
+                trading_symbol as TradingSymbol,
+                name as Name,
+                holding_quantity as HoldingQuantity,
+                created_at_utc as CreatedAtUtc,
+                updated_at_utc as UpdatedAtUtc
+            """,
+            new
+            {
+                Symbol = symbol,
+                Name = name,
+                Exchange = exchange,
+                SymbolToken = symbolToken,
+                TradingSymbol = tradingSymbol
             });
     }
 
@@ -147,6 +203,7 @@ public sealed class StockRepository(IDbConnectionFactory connectionFactory) : IS
                 symbol_token as SymbolToken,
                 trading_symbol as TradingSymbol,
                 name as Name,
+                holding_quantity as HoldingQuantity,
                 created_at_utc as CreatedAtUtc,
                 updated_at_utc as UpdatedAtUtc
             from stocks

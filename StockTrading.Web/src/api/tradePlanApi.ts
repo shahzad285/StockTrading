@@ -6,9 +6,7 @@ export type TradePlan = {
   stockId?: number;
   buyPrice: number;
   sellPrice: number;
-  quantity: number;
-  maxBudget?: number | null;
-  status?: "Active" | "Paused" | "Completed" | "Cancelled";
+  maxStocksAllowed: number;
   isActive: boolean;
   repeatEnabled: boolean;
   buyTriggerCount?: number;

@@ -8,6 +8,7 @@ public class StockListItem
     public string Exchange { get; set; } = "NSE";
     public string SymbolToken { get; set; } = "";
     public string TradingSymbol { get; set; } = "";
+    public int HoldingQuantity { get; set; }
     public string AssetType { get; set; } = "Unknown";
     public string? Theme { get; set; }
     public string? Sector { get; set; }

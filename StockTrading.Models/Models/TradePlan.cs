@@ -6,8 +6,7 @@ public class TradePlan
     public int StockId { get; set; }
     public decimal BuyPrice { get; set; }
     public decimal SellPrice { get; set; }
-    public int Quantity { get; set; } = 1;
-    public decimal? MaxBudget { get; set; }
+    public int MaxStocksAllowed { get; set; }
     public bool IsActive { get; set; } = true;
     public bool RepeatEnabled { get; set; } = true;
     public int BuyTriggerCount { get; set; }
