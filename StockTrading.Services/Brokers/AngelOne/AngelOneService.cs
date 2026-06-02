@@ -601,10 +601,89 @@ public class AngelOneService : IBrokerService
         return prices;
     }
 
-    private async Task<bool> PlaceOrder(string symbol, int quantity, string orderType, decimal price)
+    private async Task<PlaceOrderResult> PlaceOrder(PlaceOrderRequest request)
     {
-        // Placeholder implementation
-        return false;
+        if (!await EnsureJwtToken())
+        {
+            return new PlaceOrderResult(false, Message: "SmartAPI session is unavailable. Please login again.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.SymbolToken))
+        {
+            return new PlaceOrderResult(false, Message: "Symbol token is required to place an order.");
+        }
+
+        var tradingSymbol = string.IsNullOrWhiteSpace(request.TradingSymbol)
+            ? request.Symbol
+            : request.TradingSymbol;
+        var exchange = string.IsNullOrWhiteSpace(request.Exchange)
+            ? "NSE"
+            : request.Exchange.Trim().ToUpperInvariant();
+        var orderType = string.IsNullOrWhiteSpace(request.OrderType)
+            ? "LIMIT"
+            : request.OrderType.Trim().ToUpperInvariant();
+        var productType = string.IsNullOrWhiteSpace(request.ProductType)
+            ? "DELIVERY"
+            : request.ProductType.Trim().ToUpperInvariant();
+        var duration = string.IsNullOrWhiteSpace(request.Duration)
+            ? "DAY"
+            : request.Duration.Trim().ToUpperInvariant();
+
+        SetDefaultHeaders(_jwtToken);
+
+        var orderRequest = new
+        {
+            variety = "NORMAL",
+            tradingsymbol = tradingSymbol.Trim().ToUpperInvariant(),
+            symboltoken = request.SymbolToken.Trim(),
+            transactiontype = request.TransactionType.Trim().ToUpperInvariant(),
+            exchange,
+            ordertype = orderType,
+            producttype = productType,
+            duration,
+            price = orderType == "MARKET" || orderType == "STOPLOSS_MARKET"
+                ? "0"
+                : request.Price.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture),
+            triggerprice = (request.TriggerPrice ?? 0).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture),
+            quantity = request.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        };
+
+        var response = await _httpClient.PostAsJsonAsync(
+            "/rest/secure/angelbroking/order/v1/placeOrder",
+            orderRequest);
+        var content = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            System.Console.WriteLine($"Failed to place order: {response.StatusCode}");
+            System.Console.WriteLine($"Place Order Response Body: {content}");
+            return new PlaceOrderResult(false, Message: $"Order API failed with status {(int)response.StatusCode}.");
+        }
+
+        using var jsonDoc = JsonDocument.Parse(content);
+        var root = jsonDoc.RootElement;
+        if (root.TryGetProperty("status", out var statusElement) &&
+            statusElement.ValueKind == JsonValueKind.False)
+        {
+            var message = GetJsonStringProperty(root, "message", "errorMessage");
+            return new PlaceOrderResult(false, Message: string.IsNullOrWhiteSpace(message) ? "Order placement failed." : message);
+        }
+
+        var brokerOrderId = "";
+        if (root.TryGetProperty("data", out var dataElement) &&
+            dataElement.ValueKind == JsonValueKind.Object)
+        {
+            brokerOrderId = GetJsonStringProperty(dataElement, "orderid", "orderId", "uniqueorderid");
+        }
+
+        if (string.IsNullOrWhiteSpace(brokerOrderId))
+        {
+            brokerOrderId = GetJsonStringProperty(root, "orderid", "orderId");
+        }
+
+        return string.IsNullOrWhiteSpace(brokerOrderId)
+            ? new PlaceOrderResult(false, Message: "Order placed but broker order id was not returned.")
+            : new PlaceOrderResult(true, brokerOrderId, "Order placed.");
     }
 
     private sealed class ScripInstrument
@@ -1396,15 +1475,7 @@ public class AngelOneService : IBrokerService
 
     public async Task<PlaceOrderResult> PlaceOrderAsync(PlaceOrderRequest request)
     {
-        var isPlaced = await PlaceOrder(
-            request.Symbol,
-            request.Quantity,
-            request.TransactionType,
-            request.Price);
-
-        return isPlaced
-            ? new PlaceOrderResult(true, Message: "Order placed.")
-            : new PlaceOrderResult(false, Message: "Order placement is not implemented for Angel One yet.");
+        return await PlaceOrder(request);
     }
 
     public Task<CancelOrderResult> CancelOrderAsync(string brokerOrderId)

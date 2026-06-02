@@ -8,6 +8,7 @@ namespace StockTrading.Services;
 
 public sealed class StockService(
     IBrokerService brokerService,
+    IMarketDataCacheService marketDataCacheService,
     IStockRepository stockRepository,
     ITradePlanRepository tradePlanRepository,
     IMarketScheduleService marketScheduleService) : IStockService
@@ -93,7 +94,10 @@ public sealed class StockService(
             return GetMarketClosedPrices(stockList, decision);
         }
 
-        return await brokerService.GetPricesAsync(stockList);
+        return await marketDataCacheService.GetPricesAsync(
+            stockList,
+            stocks => brokerService.GetPricesAsync(stocks),
+            cancellationToken);
     }
 
     public async Task<List<StockPrice>> RefreshConfiguredPricesAsync(CancellationToken cancellationToken = default)

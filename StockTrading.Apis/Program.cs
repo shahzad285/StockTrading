@@ -1,4 +1,5 @@
 using StockTrading.Services;
+using StockTrading.Workers;
 using StockTrading.IServices;
 using StockTrading.Data;
 using StockTrading.Models;
@@ -150,10 +151,34 @@ builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IStockService, StockService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<ITradePlanService, TradePlanService>();
+builder.Services.AddSingleton(new StockTrading.Common.Configuration.MarketDataCacheOptions
+{
+    TradingHoursPriceTtlSeconds = GetIntConfiguration(
+        builder.Configuration,
+        "MarketDataCache:TradingHoursPriceTtlSeconds",
+        15),
+    TradingHoursBalanceTtlSeconds = GetIntConfiguration(
+        builder.Configuration,
+        "MarketDataCache:TradingHoursBalanceTtlSeconds",
+        30),
+    AfterHoursPriceTtlMinutes = GetIntConfiguration(
+        builder.Configuration,
+        "MarketDataCache:AfterHoursPriceTtlMinutes",
+        120),
+    AfterHoursBalanceTtlMinutes = GetIntConfiguration(
+        builder.Configuration,
+        "MarketDataCache:AfterHoursBalanceTtlMinutes",
+        30)
+});
+builder.Services.AddScoped<IMarketDataCacheService, MarketDataCacheService>();
+builder.Services.AddScoped<IOrderStatusTrackingService, OrderStatusTrackingService>();
+builder.Services.AddScoped<ITradePlanExecutionService, TradePlanExecutionService>();
 builder.Services.AddScoped<IStockFundamentalsService, StockFundamentalsService>();
 builder.Services.AddScoped<IMarketScheduleService, MarketScheduleService>();
 builder.Services.AddHostedService<StockPricePollingWorker>();
 builder.Services.AddHostedService<StockFundamentalsPollingWorker>();
+builder.Services.AddHostedService<OrderStatusTrackingWorker>();
+builder.Services.AddHostedService<TradePlanExecutionWorker>();
 builder.Services.AddScoped<IStringEncryptionService, AesStringEncryptionService>();
 builder.Services.AddScoped<IBrokerSessionStore, BrokerSessionStore>();
 builder.Services.AddHttpClient<ITapetideFundamentalsService, TapetideFundamentalsService>((serviceProvider, client) =>
@@ -222,3 +247,10 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static int GetIntConfiguration(IConfiguration configuration, string key, int defaultValue)
+{
+    return int.TryParse(configuration[key], out var value) && value > 0
+        ? value
+        : defaultValue;
+}

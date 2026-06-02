@@ -8,6 +8,7 @@ namespace StockTrading.Services;
 
 public sealed class OrderService(
     IBrokerService brokerService,
+    IMarketDataCacheService marketDataCacheService,
     IStockRepository stockRepository,
     IOrderRepository orderRepository) : IOrderService
 {
@@ -47,7 +48,9 @@ public sealed class OrderService(
                 return new PlaceOrderResult(false, Message: "Price must be greater than zero to validate available balance.");
             }
 
-            var balance = await brokerService.GetAccountBalanceAsync();
+            var balance = await marketDataCacheService.GetAccountBalanceAsync(
+                () => brokerService.GetAccountBalanceAsync(),
+                cancellationToken);
 
             if (balance == null)
             {

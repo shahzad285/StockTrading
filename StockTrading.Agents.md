@@ -23,6 +23,7 @@ The app currently supports:
 - Trade plan creation, editing, listing, details, and deletion.
 - Broker account balance lookup through Angel One SmartAPI RMS limits.
 - Basic order passthrough operations through the active broker service.
+- Manual and trade-plan-created orders are tracked locally after successful broker placement.
 
 ## Business Concepts
 
@@ -44,9 +45,11 @@ Trade plans represent intended buy/sell setups for a stock.
 - Trade plans are stored in `trade_plans`.
 - A trade plan always points to a stock through `stock_id`.
 - The UI can create, edit, view details for, and delete trade plans.
-- Backend trade-plan monitoring and automated execution are not implemented yet.
+- Backend trade-plan monitoring can place broker orders automatically.
+- Buy execution uses the trade plan's max stocks allowed.
+- Sell execution uses the stock's confirmed holding quantity.
 - Trade plan runs are modeled in `trade_plan_runs`, but active backend execution
-  workflow still needs to be built.
+  workflow still needs to be expanded around local order tracking.
 
 ### Fundamentals
 
@@ -232,8 +235,17 @@ Historical cleanup note:
 - Blocks stock deletion when dependent records exist.
 - Searches stocks through the broker.
 - Retrieves chart candles through the broker.
-- Retrieves configured prices from saved Stock Master rows.
+- Retrieves configured prices from saved Stock Master rows through the shared market-data cache.
 - Applies market schedule decisions before price calls.
+
+### `MarketDataCacheService`
+
+- Caches latest stock prices by `exchange + symbol_token`.
+- Caches active broker account balance.
+- Uses shorter TTLs during trading hours and longer TTLs outside trading hours.
+- TTLs are configured through the `MarketDataCache` configuration section.
+- Current development TTLs: trading-hours prices 15 seconds, trading-hours balance 30 seconds, after-hours prices 120 minutes, after-hours balance 30 minutes.
+- Failed broker calls are cached briefly for 5 seconds to avoid tight retry loops.
 
 ### `TradePlanService`
 
@@ -264,8 +276,12 @@ Historical cleanup note:
 - Checks broker account balance before buy orders.
 - Uses `AvailableCash` from the Angel One RMS balance response as the buy-order
   affordability amount.
+- Reads broker balance through the shared market-data cache.
 - Rejects buy orders when `quantity * price` is greater than available cash.
 - Sell orders do not use this cash-balance check.
+- Resolves or creates the related Stock Master row before broker placement.
+- Saves successfully placed broker orders locally when a broker order id is returned.
+- Records local order history for placed orders.
 
 ## Background Jobs
 
@@ -293,6 +309,31 @@ Behavior:
 - Controlled by `FundamentalsPolling` configuration.
 - Processes up to `MaxStocksPerRun`.
 - Pulls from the full `stocks` table.
+
+### `OrderStatusTrackingWorker`
+
+Purpose:
+
+- Tracks open local orders against the active broker order book.
+
+Behavior:
+
+- Updates local order status and history.
+- Updates `stocks.holding_quantity` only from newly confirmed filled-share deltas.
+- Buy fills increase holdings; sell fills decrease holdings.
+
+### `TradePlanExecutionWorker`
+
+Purpose:
+
+- Checks active trade plans and creates broker orders when buy/sell prices trigger.
+
+Behavior:
+
+- Reads prices through the shared market-data cache.
+- Buy orders use `MaxStocksAllowed`.
+- Sell orders use current confirmed `stocks.holding_quantity`.
+- Skips duplicate open orders for the same trade plan side.
 
 ## Frontend Implementation
 
@@ -383,6 +424,7 @@ Shared chart behavior:
 - Fundamentals polling works for all saved stocks.
 - Buy order placement requires enough broker `AvailableCash` for
   `quantity * price`.
+- Stock holding quantity is updated only after partial or full broker fills are confirmed.
 
 ## Known Gaps And Planned Work
 
