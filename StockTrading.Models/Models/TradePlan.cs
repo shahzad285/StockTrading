@@ -1,5 +1,3 @@
-using StockTrading.Common.Enums;
-
 namespace StockTrading.Models;
 
 public class TradePlan
@@ -10,7 +8,6 @@ public class TradePlan
     public decimal SellPrice { get; set; }
     public int Quantity { get; set; } = 1;
     public decimal? MaxBudget { get; set; }
-    public TradePlanStatus Status { get; set; } = TradePlanStatus.Active;
     public bool IsActive { get; set; } = true;
     public bool RepeatEnabled { get; set; } = true;
     public int BuyTriggerCount { get; set; }

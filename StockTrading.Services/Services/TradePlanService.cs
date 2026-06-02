@@ -1,7 +1,6 @@
 using StockTrading.IServices;
 using StockTrading.Models;
 using StockTrading.Repository.IRepository;
-using StockTrading.Common.Enums;
 
 namespace StockTrading.Services;
 
@@ -57,9 +56,6 @@ public sealed class TradePlanService(ITradePlanRepository tradePlanRepository) :
             SellPrice = tradePlan.SellPrice,
             Quantity = tradePlan.Quantity,
             MaxBudget = tradePlan.MaxBudget,
-            Status = tradePlan.Status == default
-                ? TradePlanStatus.Active
-                : tradePlan.Status,
             IsActive = tradePlan.IsActive,
             RepeatEnabled = tradePlan.RepeatEnabled,
             Symbol = tradePlan.Symbol.Trim().ToUpperInvariant(),
