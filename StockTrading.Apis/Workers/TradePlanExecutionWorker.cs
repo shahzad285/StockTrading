@@ -15,6 +15,12 @@ public sealed class TradePlanExecutionWorker(
             try
             {
                 using var scope = serviceScopeFactory.CreateScope();
+                var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+                if (!MarketWorkerSchedule.IsWithinMarketWindow(configuration))
+                {
+                    continue;
+                }
+
                 var service = scope.ServiceProvider.GetRequiredService<ITradePlanExecutionService>();
                 await service.ExecuteAsync(stoppingToken);
             }

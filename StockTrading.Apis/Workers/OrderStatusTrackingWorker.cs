@@ -15,6 +15,12 @@ public sealed class OrderStatusTrackingWorker(
             try
             {
                 using var scope = serviceScopeFactory.CreateScope();
+                var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+                if (!MarketWorkerSchedule.IsWithinMarketWindow(configuration))
+                {
+                    continue;
+                }
+
                 var service = scope.ServiceProvider.GetRequiredService<IOrderStatusTrackingService>();
                 await service.TrackOpenOrdersAsync(stoppingToken);
             }
