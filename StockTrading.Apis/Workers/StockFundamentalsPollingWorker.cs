@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 using StockTrading.Common.Settings;
 using StockTrading.IServices;
 
-namespace StockTrading.Services;
+namespace StockTrading.Workers;
 
 public sealed class StockFundamentalsPollingWorker(
     IServiceScopeFactory scopeFactory,

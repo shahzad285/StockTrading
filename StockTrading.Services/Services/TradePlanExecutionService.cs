@@ -43,27 +43,33 @@ public sealed class TradePlanExecutionService(
                 continue;
             }
 
-            if (price.LastTradedPrice <= tradePlan.BuyPrice &&
-                !HasOpenTradePlanOrder(openOrders, tradePlan.Id, "BUY"))
+            var stock = await stockRepository.GetByIdAsync(tradePlan.StockId, cancellationToken);
+            var holdingQuantity = stock?.HoldingQuantity ?? 0;
+
+            if (price.LastTradedPrice <= tradePlan.BuyPrice)
             {
-                await PlaceTradePlanOrderAsync(
-                    tradePlan,
-                    "BUY",
-                    tradePlan.MaxStocksAllowed,
-                    tradePlan.BuyPrice,
-                    cancellationToken);
+                var inProgressBuyQuantity = GetOpenTradePlanOrderQuantity(openOrders, tradePlan.Id, "BUY");
+                var buyQuantity = tradePlan.MaxStocksAllowed - holdingQuantity - inProgressBuyQuantity;
+                if (buyQuantity > 0)
+                {
+                    await PlaceTradePlanOrderAsync(
+                        tradePlan,
+                        "BUY",
+                        buyQuantity,
+                        tradePlan.BuyPrice,
+                        cancellationToken);
+                }
             }
 
             if (price.LastTradedPrice >= tradePlan.SellPrice &&
                 !HasOpenTradePlanOrder(openOrders, tradePlan.Id, "SELL"))
             {
-                var stock = await stockRepository.GetByIdAsync(tradePlan.StockId, cancellationToken);
-                if (stock?.HoldingQuantity > 0)
+                if (holdingQuantity > 0)
                 {
                     await PlaceTradePlanOrderAsync(
                         tradePlan,
                         "SELL",
-                        stock.HoldingQuantity,
+                        holdingQuantity,
                         tradePlan.SellPrice,
                         cancellationToken);
                 }
@@ -109,6 +115,28 @@ public sealed class TradePlanExecutionService(
         return openOrders.Any(order =>
             order.TradePlanId == tradePlanId &&
             string.Equals(order.TransactionType, transactionType, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static int GetOpenTradePlanOrderQuantity(
+        IReadOnlyList<Order> openOrders,
+        int tradePlanId,
+        string transactionType)
+    {
+        return openOrders
+            .Where(order =>
+                order.TradePlanId == tradePlanId &&
+                string.Equals(order.TransactionType, transactionType, StringComparison.OrdinalIgnoreCase))
+            .Sum(GetRemainingOrderQuantity);
+    }
+
+    private static int GetRemainingOrderQuantity(Order order)
+    {
+        if (order.UnfilledShares > 0)
+        {
+            return order.UnfilledShares;
+        }
+
+        return Math.Max(0, order.Quantity - order.FilledShares - order.CancelledShares);
     }
 
     private static StockListItem ToStockListItem(TradePlan tradePlan)
