@@ -14,7 +14,7 @@ public sealed class OrderService(
 {
     public Task<List<OrderDetails>> GetOrdersAsync(CancellationToken cancellationToken = default)
     {
-        return brokerService.GetOrdersAsync();
+        return GetMergedOrdersAsync(cancellationToken);
     }
 
     public async Task<OrderDetails?> GetOrderAsync(
@@ -122,6 +122,61 @@ public sealed class OrderService(
     private static bool IsBuyOrder(string transactionType)
     {
         return string.Equals(transactionType, "BUY", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<List<OrderDetails>> GetMergedOrdersAsync(CancellationToken cancellationToken)
+    {
+        var localOrders = await orderRepository.GetAllAsync(cancellationToken);
+        var mergedOrders = localOrders
+            .Select(ToOrderDetails)
+            .ToDictionary(order => order.OrderId, StringComparer.OrdinalIgnoreCase);
+
+        List<OrderDetails> brokerOrders;
+        try
+        {
+            brokerOrders = await brokerService.GetOrdersAsync();
+        }
+        catch
+        {
+            brokerOrders = new List<OrderDetails>();
+        }
+
+        foreach (var brokerOrder in brokerOrders)
+        {
+            if (!string.IsNullOrWhiteSpace(brokerOrder.OrderId))
+            {
+                mergedOrders[brokerOrder.OrderId] = brokerOrder;
+            }
+        }
+
+        return mergedOrders.Values.ToList();
+    }
+
+    private static OrderDetails ToOrderDetails(Order order)
+    {
+        return new OrderDetails
+        {
+            OrderId = order.BrokerOrderId,
+            TradingSymbol = order.TradingSymbol,
+            Exchange = order.Exchange,
+            TransactionType = order.TransactionType,
+            OrderType = order.OrderType,
+            ProductType = order.ProductType,
+            Duration = order.Duration,
+            Status = order.Status.ToString(),
+            StatusCategory = order.Status.ToString(),
+            RejectionReason = order.RejectionReason,
+            Quantity = order.Quantity,
+            FilledShares = order.FilledShares,
+            UnfilledShares = order.UnfilledShares,
+            CancelledShares = order.CancelledShares,
+            Price = order.Price,
+            TriggerPrice = order.TriggerPrice,
+            AveragePrice = order.AveragePrice,
+            UpdateTime = order.UpdateTime,
+            ExchangeTime = order.ExchangeTime,
+            ParentOrderId = order.ParentBrokerOrderId
+        };
     }
 
     private async Task<Stock?> ResolveStockAsync(

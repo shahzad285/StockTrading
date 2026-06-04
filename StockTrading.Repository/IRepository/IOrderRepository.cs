@@ -4,6 +4,7 @@ namespace StockTrading.Repository.IRepository;
 
 public interface IOrderRepository
 {
+    Task<IReadOnlyList<Order>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<Order?> GetByBrokerOrderIdAsync(string brokerOrderId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Order>> GetOpenOrdersAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<OrderHistory>> GetHistoryAsync(string brokerOrderId, CancellationToken cancellationToken = default);

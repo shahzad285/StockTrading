@@ -7,6 +7,45 @@ namespace StockTrading.Repository.Repository;
 
 public sealed class OrderRepository(IDbConnectionFactory connectionFactory) : IOrderRepository
 {
+    public async Task<IReadOnlyList<Order>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        var orders = await connection.QueryAsync<Order>(
+            """
+            select
+                id as Id,
+                stock_id as StockId,
+                trade_plan_id as TradePlanId,
+                broker_order_id as BrokerOrderId,
+                trading_symbol as TradingSymbol,
+                exchange as Exchange,
+                symbol_token as SymbolToken,
+                transaction_type as TransactionType,
+                order_type as OrderType,
+                product_type as ProductType,
+                duration as Duration,
+                source as Source,
+                status as Status,
+                rejection_reason as RejectionReason,
+                quantity as Quantity,
+                filled_shares as FilledShares,
+                unfilled_shares as UnfilledShares,
+                cancelled_shares as CancelledShares,
+                price as Price,
+                trigger_price as TriggerPrice,
+                average_price as AveragePrice,
+                update_time as UpdateTime,
+                exchange_time as ExchangeTime,
+                parent_broker_order_id as ParentBrokerOrderId,
+                created_at_utc as CreatedAtUtc,
+                updated_at_utc as UpdatedAtUtc
+            from orders
+            order by created_at_utc desc
+            """);
+
+        return orders.ToArray();
+    }
+
     public async Task<Order?> GetByBrokerOrderIdAsync(string brokerOrderId, CancellationToken cancellationToken = default)
     {
         await using var connection = await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
