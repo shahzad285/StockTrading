@@ -319,8 +319,9 @@ Purpose:
 Behavior:
 
 - Updates local order status and history.
-- Updates `stocks.holding_quantity` only from newly confirmed filled-share deltas.
-- Buy fills increase holdings; sell fills decrease holdings.
+- After confirmed partial or full fills, reconciles `stocks.holding_quantity` from broker holdings when available.
+- Falls back to newly confirmed filled-share deltas only when broker holdings cannot be matched or fetched.
+- Buy fills increase holdings; sell fills decrease holdings when fallback delta logic is used.
 
 ### `TradePlanExecutionWorker`
 
@@ -424,7 +425,7 @@ Shared chart behavior:
 - Fundamentals polling works for all saved stocks.
 - Buy order placement requires enough broker `AvailableCash` for
   `quantity * price`.
-- Stock holding quantity is updated only after partial or full broker fills are confirmed.
+- Stock holding quantity is updated only after partial or full broker fills are confirmed, preferring broker holdings as the source of truth.
 
 ## Known Gaps And Planned Work
 

@@ -310,6 +310,22 @@ public sealed class OrderRepository(IDbConnectionFactory connectionFactory) : IO
             ToParameters(history));
     }
 
+    public async Task SetHoldingQuantityAsync(
+        int stockId,
+        int holdingQuantity,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        await connection.ExecuteAsync(
+            """
+            update stocks
+            set holding_quantity = greatest(0, @HoldingQuantity),
+                updated_at_utc = now()
+            where id = @StockId
+            """,
+            new { StockId = stockId, HoldingQuantity = holdingQuantity });
+    }
+
     public async Task ApplyHoldingQuantityDeltaAsync(
         int stockId,
         int quantityDelta,

@@ -57,16 +57,67 @@ public sealed class OrderStatusTrackingService(
             CreateHistory(savedOrder, GetEventType(savedOrder.Status)),
             cancellationToken);
 
-        if (filledDelta > 0)
+        if (filledDelta > 0 || savedOrder.Status == OrderStatus.Executed)
         {
-            var holdingDelta = IsSellOrder(savedOrder.TransactionType)
-                ? -filledDelta
-                : filledDelta;
-            await orderRepository.ApplyHoldingQuantityDeltaAsync(
-                savedOrder.StockId,
-                holdingDelta,
-                cancellationToken);
+            var isReconciled = await TryReconcileHoldingFromBrokerAsync(savedOrder, cancellationToken);
+            if (!isReconciled && filledDelta > 0)
+            {
+                var holdingDelta = IsSellOrder(savedOrder.TransactionType)
+                    ? -filledDelta
+                    : filledDelta;
+                await orderRepository.ApplyHoldingQuantityDeltaAsync(
+                    savedOrder.StockId,
+                    holdingDelta,
+                    cancellationToken);
+            }
         }
+    }
+
+    private async Task<bool> TryReconcileHoldingFromBrokerAsync(
+        Order order,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var holdings = await brokerService.GetHoldingsAsync();
+            var brokerHolding = holdings.Stocks.FirstOrDefault(holding =>
+                IsSameStock(order, holding));
+
+            if (brokerHolding != null)
+            {
+                await orderRepository.SetHoldingQuantityAsync(
+                    order.StockId,
+                    brokerHolding.TotalStocks,
+                    cancellationToken);
+                return true;
+            }
+
+            if (IsSellOrder(order.TransactionType) && order.Status == OrderStatus.Executed)
+            {
+                await orderRepository.SetHoldingQuantityAsync(order.StockId, 0, cancellationToken);
+                return true;
+            }
+        }
+        catch
+        {
+            return false;
+        }
+
+        return false;
+    }
+
+    private static bool IsSameStock(Order order, HoldingStock holding)
+    {
+        if (!string.IsNullOrWhiteSpace(order.SymbolToken) &&
+            !string.IsNullOrWhiteSpace(holding.SymbolToken) &&
+            string.Equals(order.SymbolToken, holding.SymbolToken, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(order.Exchange, holding.Exchange, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return string.Equals(order.TradingSymbol, holding.TradingSymbol, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(order.Exchange, holding.Exchange, StringComparison.OrdinalIgnoreCase);
     }
 
     private static OrderStatus GetOrderStatus(string statusCategory, string status)

@@ -9,5 +9,6 @@ public interface IOrderRepository
     Task<IReadOnlyList<OrderHistory>> GetHistoryAsync(string brokerOrderId, CancellationToken cancellationToken = default);
     Task<Order> SaveAsync(Order order, CancellationToken cancellationToken = default);
     Task AddHistoryAsync(OrderHistory history, CancellationToken cancellationToken = default);
+    Task SetHoldingQuantityAsync(int stockId, int holdingQuantity, CancellationToken cancellationToken = default);
     Task ApplyHoldingQuantityDeltaAsync(int stockId, int quantityDelta, CancellationToken cancellationToken = default);
 }
