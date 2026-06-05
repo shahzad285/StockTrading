@@ -74,13 +74,10 @@ public sealed class StockService(
     public async Task<List<StockPrice>> GetConfiguredPricesAsync(CancellationToken cancellationToken = default)
     {
         var stocks = await stockRepository.GetAllAsync(cancellationToken);
-        var decision = await marketScheduleService.DecideAsync("ConfiguredPriceApi", cancellationToken: cancellationToken);
-        if (!decision.JobsEnabled)
-        {
-            return GetMarketClosedPrices(stocks, decision);
-        }
-
-        return await brokerService.GetPricesAsync(stocks);
+        return await marketDataCacheService.GetPricesAsync(
+            stocks,
+            stocks => brokerService.GetPricesAsync(stocks),
+            cancellationToken);
     }
 
     public async Task<List<StockPrice>> GetPricesAsync(
