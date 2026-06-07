@@ -756,7 +756,7 @@ public class AngelOneService : IBrokerService
                 };
             })
             .Where(item => !string.IsNullOrWhiteSpace(item.SymbolToken) &&
-                           IsSupportedEquitySeries(item.TradingSymbol))
+                           IsSupportedEquitySeries(item.TradingSymbol, item.Exchange))
             .GroupBy(item => $"{item.Exchange}|{item.Symbol}".ToUpperInvariant())
             .Select(group => group
                 .OrderBy(item => GetEquitySeriesPreference(item.TradingSymbol))
@@ -953,8 +953,13 @@ public class AngelOneService : IBrokerService
                 : tradingSymbol;
     }
 
-    private static bool IsSupportedEquitySeries(string tradingSymbol)
+    private static bool IsSupportedEquitySeries(string tradingSymbol, string exchange)
     {
+        if (string.Equals(exchange, "BSE", StringComparison.OrdinalIgnoreCase))
+        {
+            return !string.IsNullOrWhiteSpace(tradingSymbol);
+        }
+
         return tradingSymbol.EndsWith("-EQ", StringComparison.OrdinalIgnoreCase) ||
                tradingSymbol.EndsWith("-BE", StringComparison.OrdinalIgnoreCase);
     }
