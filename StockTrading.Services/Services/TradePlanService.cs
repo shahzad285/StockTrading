@@ -1,3 +1,4 @@
+using StockTrading.Common.DTOs;
 using StockTrading.IServices;
 using StockTrading.Models;
 using StockTrading.Repository.IRepository;
@@ -9,6 +10,14 @@ public sealed class TradePlanService(ITradePlanRepository tradePlanRepository) :
     public Task<IReadOnlyList<TradePlan>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return tradePlanRepository.GetAllAsync(cancellationToken);
+    }
+
+    public Task<PagedResult<TradePlan>> GetPageAsync(
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        return tradePlanRepository.GetPageAsync(page, pageSize, cancellationToken);
     }
 
     public Task<TradePlan> SaveAsync(TradePlan tradePlan, CancellationToken cancellationToken = default)

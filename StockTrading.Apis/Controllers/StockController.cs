@@ -16,10 +16,16 @@ public class StockController : ControllerBase
     }
 
     [HttpGet("stocks")]
-    public async Task<IActionResult> Stocks()
+    public async Task<IActionResult> Stocks([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var stocks = await _stockService.GetStocksAsync(HttpContext.RequestAborted);
-        return Ok(new { stocks });
+        var result = await _stockService.GetStocksAsync(page, pageSize, HttpContext.RequestAborted);
+        return Ok(new
+        {
+            stocks = result.Items,
+            result.TotalCount,
+            result.Page,
+            result.PageSize
+        });
     }
 
     [HttpPost("stocks")]

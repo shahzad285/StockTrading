@@ -6,6 +6,7 @@ namespace StockTrading.Repository.IRepository;
 public interface IStockRepository
 {
     Task<IReadOnlyList<StockListItem>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<PagedResult<StockListItem>> GetPageAsync(int page, int pageSize, CancellationToken cancellationToken = default);
     Task<Stock> UpsertAsync(SaveStockRequest request, CancellationToken cancellationToken = default);
     Task<Stock> UpsertOrderStockAsync(
         string symbol,

@@ -57,6 +57,74 @@ public sealed class StockRepository(IDbConnectionFactory connectionFactory) : IS
         return stocks.ToArray();
     }
 
+    public async Task<PagedResult<StockListItem>> GetPageAsync(
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        await using var connection = await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        var stocks = await connection.QueryAsync<StockListItem>(
+            """
+            select
+                stocks.id as StockId,
+                stocks.symbol as Symbol,
+                stocks.name as Name,
+                stocks.exchange as Exchange,
+                stocks.symbol_token as SymbolToken,
+                stocks.trading_symbol as TradingSymbol,
+                stocks.holding_quantity as HoldingQuantity,
+                coalesce(stock_profiles.asset_type, 'Unknown') as AssetType,
+                stock_profiles.theme as Theme,
+                stock_profiles.sector as Sector,
+                stock_profiles.industry as Industry,
+                stock_profiles.classification_reason as ClassificationReason,
+                stock_profiles.confidence_score as ConfidenceScore,
+                stock_profiles.description as Description,
+                coalesce(stock_profiles.updated_by_nse, false) as UpdatedByNse,
+                coalesce(stock_profiles.updated_by_yahoo, false) as UpdatedByYahoo,
+                coalesce(stock_profiles.updated_by_tapetide, false) as UpdatedByTapetide,
+                stock_profiles.dividend_yield as DividendYield,
+                stock_profiles.growth_rate as GrowthRate,
+                stock_profiles.debt_to_equity as DebtToEquity,
+                stock_profiles.pe_ratio as PERatio,
+                stock_profiles.earnings_per_share as EarningsPerShare,
+                stock_profiles.price_to_book as PriceToBook,
+                stock_profiles.total_revenue / 10000000 as TotalRevenue,
+                stock_profiles.net_income / 10000000 as NetIncome,
+                stock_profiles.total_debt / 10000000 as TotalDebt,
+                stock_profiles.total_cash / 10000000 as TotalCash,
+                stock_profiles.cash_flow / 10000000 as CashFlow,
+                stock_profiles.market_cap as MarketCap,
+                coalesce(stock_profiles.stock_category, 'Unknown') as StockCategory,
+                stock_profiles.stock_category_reason as StockCategoryReason,
+                stock_profiles.stock_category_confidence as StockCategoryConfidence,
+                stock_profiles.stock_category_updated_at_utc as StockCategoryUpdatedAtUtc,
+                stock_profiles.last_analyzed_at_utc as LastAnalyzedAtUtc
+            from stocks
+            left join stock_profiles
+              on stock_profiles.stock_id = stocks.id
+            order by stocks.exchange, stocks.symbol
+            limit @PageSize offset @Offset
+            """,
+            new
+            {
+                PageSize = pageSize,
+                Offset = (page - 1) * pageSize
+            });
+        var totalCount = await connection.ExecuteScalarAsync<int>("select count(*) from stocks");
+
+        return new PagedResult<StockListItem>
+        {
+            Items = stocks.ToArray(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
     public async Task<Stock> UpsertAsync(SaveStockRequest request, CancellationToken cancellationToken = default)
     {
         await using var connection = await connectionFactory.CreateOpenConnectionAsync(cancellationToken);

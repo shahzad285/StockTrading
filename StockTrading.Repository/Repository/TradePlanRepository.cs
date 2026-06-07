@@ -1,4 +1,5 @@
 using Dapper;
+using StockTrading.Common.DTOs;
 using StockTrading.Data;
 using StockTrading.Models;
 using StockTrading.Repository.IRepository;
@@ -38,6 +39,58 @@ public sealed class TradePlanRepository(IDbConnectionFactory connectionFactory) 
             """);
 
         return tradePlans.ToArray();
+    }
+
+    public async Task<PagedResult<TradePlan>> GetPageAsync(
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        await using var connection = await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        var tradePlans = await connection.QueryAsync<TradePlan>(
+            """
+            select
+                trade_plans.id as Id,
+                trade_plans.stock_id as StockId,
+                trade_plans.buy_price as BuyPrice,
+                trade_plans.sell_price as SellPrice,
+                trade_plans.max_stocks_allowed as MaxStocksAllowed,
+                trade_plans.is_active as IsActive,
+                trade_plans.repeat_enabled as RepeatEnabled,
+                trade_plans.buy_trigger_count as BuyTriggerCount,
+                trade_plans.sell_trigger_count as SellTriggerCount,
+                trade_plans.last_buy_triggered_at_utc as LastBuyTriggeredAtUtc,
+                trade_plans.last_sell_triggered_at_utc as LastSellTriggeredAtUtc,
+                trade_plans.created_at_utc as CreatedAtUtc,
+                trade_plans.updated_at_utc as UpdatedAtUtc,
+                stocks.symbol as Symbol,
+                stocks.name as Name,
+                stocks.exchange as Exchange,
+                stocks.symbol_token as SymbolToken,
+                stocks.trading_symbol as TradingSymbol
+            from trade_plans
+            join stocks
+              on stocks.id = trade_plans.stock_id
+            order by trade_plans.created_at_utc desc
+            limit @PageSize offset @Offset
+            """,
+            new
+            {
+                PageSize = pageSize,
+                Offset = (page - 1) * pageSize
+            });
+        var totalCount = await connection.ExecuteScalarAsync<int>("select count(*) from trade_plans");
+
+        return new PagedResult<TradePlan>
+        {
+            Items = tradePlans.ToArray(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<TradePlan> SaveAsync(TradePlan tradePlan, CancellationToken cancellationToken = default)

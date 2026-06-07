@@ -96,12 +96,23 @@ export type StockCandle = {
   volume: number;
 };
 
+export type PagedResponse<T> = {
+  totalCount: number;
+  page: number;
+  pageSize: number;
+} & T;
+
 export async function getHoldings(): Promise<HoldingsResponse> {
   return apiRequest<HoldingsResponse>("/Stock/holdings");
 }
 
-export async function getStocks(): Promise<{ stocks: StockListItem[] }> {
-  return apiRequest<{ stocks: StockListItem[] }>("/Stock/stocks");
+export async function getStocks(page = 1, pageSize = 20): Promise<PagedResponse<{ stocks: StockListItem[] }>> {
+  const params = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize)
+  });
+
+  return apiRequest<PagedResponse<{ stocks: StockListItem[] }>>(`/Stock/stocks?${params.toString()}`);
 }
 
 export async function saveStock(stock: StockMaster): Promise<{ stock: StockMaster }> {

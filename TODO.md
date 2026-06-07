@@ -39,6 +39,7 @@
 - Added 1-day app login JWT expiry.
 - Removed the Watchlist workflow and kept Stock Master plus Trade Plan as the active stock workflows.
 - Added backend trade-plan monitoring/execution through `TradePlanExecutionWorker`.
+- Added backend pagination and page controls for Stock Master and Trade Plan listings.
 
 ## Current Notes
 

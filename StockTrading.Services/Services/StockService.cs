@@ -13,9 +13,12 @@ public sealed class StockService(
     ITradePlanRepository tradePlanRepository,
     IMarketScheduleService marketScheduleService) : IStockService
 {
-    public Task<IReadOnlyList<StockListItem>> GetStocksAsync(CancellationToken cancellationToken = default)
+    public Task<PagedResult<StockListItem>> GetStocksAsync(
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
     {
-        return stockRepository.GetAllAsync(cancellationToken);
+        return stockRepository.GetPageAsync(page, pageSize, cancellationToken);
     }
 
     public Task<Stock> SaveStockAsync(SaveStockRequest request, CancellationToken cancellationToken = default)

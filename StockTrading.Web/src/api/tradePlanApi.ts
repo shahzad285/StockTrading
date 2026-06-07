@@ -1,5 +1,5 @@
 import { apiRequest } from "./apiClient";
-import { StockExchange, StockSearchResult } from "./stockApi";
+import { PagedResponse, StockExchange, StockSearchResult } from "./stockApi";
 
 export type TradePlan = {
   id?: number;
@@ -20,8 +20,13 @@ export type TradePlan = {
   tradingSymbol: string;
 };
 
-export async function getTradePlans(): Promise<{ tradePlans: TradePlan[] }> {
-  return apiRequest<{ tradePlans: TradePlan[] }>("/TradePlan");
+export async function getTradePlans(page = 1, pageSize = 20): Promise<PagedResponse<{ tradePlans: TradePlan[] }>> {
+  const params = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize)
+  });
+
+  return apiRequest<PagedResponse<{ tradePlans: TradePlan[] }>>(`/TradePlan?${params.toString()}`);
 }
 
 export async function searchTradePlanStocks(

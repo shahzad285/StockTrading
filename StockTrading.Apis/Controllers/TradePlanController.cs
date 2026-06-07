@@ -16,10 +16,16 @@ public class TradePlanController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
-        var tradePlans = await _tradePlanService.GetAllAsync(HttpContext.RequestAborted);
-        return Ok(new { tradePlans });
+        var result = await _tradePlanService.GetPageAsync(page, pageSize, HttpContext.RequestAborted);
+        return Ok(new
+        {
+            tradePlans = result.Items,
+            result.TotalCount,
+            result.Page,
+            result.PageSize
+        });
     }
 
     [HttpPost]

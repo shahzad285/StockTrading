@@ -6,7 +6,7 @@ namespace StockTrading.IServices;
 
 public interface IStockService
 {
-    Task<IReadOnlyList<StockListItem>> GetStocksAsync(CancellationToken cancellationToken = default);
+    Task<PagedResult<StockListItem>> GetStocksAsync(int page, int pageSize, CancellationToken cancellationToken = default);
     Task<Stock> SaveStockAsync(SaveStockRequest request, CancellationToken cancellationToken = default);
     Task<StockServiceDeleteResult> DeleteStockAsync(int stockId, CancellationToken cancellationToken = default);
     Task<HoldingsResponse> GetHoldingsAsync(CancellationToken cancellationToken = default);

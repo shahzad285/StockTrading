@@ -43,6 +43,7 @@ const chartRanges: { label: string; value: StockChartRange }[] = [
   { label: "6M", value: "SixMonths" },
   { label: "1Y", value: "OneYear" }
 ];
+const pageSizeOptions = [20, 50, 100];
 
 const emptyStockForm: StockMaster = {
   symbol: "",
@@ -258,6 +259,9 @@ function App() {
   const [manualOrderForm, setManualOrderForm] = useState<ManualOrderForm>(emptyManualOrderForm);
   const [page, setPage] = useState<Page>("dashboard");
   const [stocks, setStocks] = useState<StockListItem[]>([]);
+  const [stockPage, setStockPage] = useState(1);
+  const [stockPageSize, setStockPageSize] = useState(20);
+  const [stockTotalCount, setStockTotalCount] = useState(0);
   const [stockForm, setStockForm] = useState<StockMaster>(emptyStockForm);
   const [stockSearch, setStockSearch] = useState("");
   const [stockSearchResults, setStockSearchResults] = useState<StockSearchResult[]>([]);
@@ -270,6 +274,9 @@ function App() {
   const [isChartLoading, setIsChartLoading] = useState(false);
   const [isChartYearLoading, setIsChartYearLoading] = useState(false);
   const [tradePlans, setTradePlans] = useState<TradePlan[]>([]);
+  const [tradePlanPage, setTradePlanPage] = useState(1);
+  const [tradePlanPageSize, setTradePlanPageSize] = useState(20);
+  const [tradePlanTotalCount, setTradePlanTotalCount] = useState(0);
   const [tradePlanForm, setTradePlanForm] = useState<TradePlan>(emptyTradePlan);
   const [tradePlanStockSearch, setTradePlanStockSearch] = useState("");
   const [tradePlanStockSearchResults, setTradePlanStockSearchResults] = useState<StockSearchResult[]>([]);
@@ -286,6 +293,8 @@ function App() {
 
   const isLoggedIn = Boolean(token);
   const positiveTotal = totalProfitLoss >= 0;
+  const stockPageCount = Math.max(1, Math.ceil(stockTotalCount / stockPageSize));
+  const tradePlanPageCount = Math.max(1, Math.ceil(tradePlanTotalCount / tradePlanPageSize));
 
   const summary = useMemo(
     () => ({
@@ -316,7 +325,7 @@ function App() {
         getHoldings(),
         getPrices(),
         getOrders(),
-        getStocks()
+        getStocks(1, 100)
       ]);
 
       setHoldings(holdingsResult.stocks);
@@ -324,6 +333,7 @@ function App() {
       setPrices(pricesResult.prices);
       setOrders(ordersResult.orders);
       setStocks(stocksResult.stocks);
+      setStockTotalCount(stocksResult.totalCount);
     } catch (error) {
       setMessageType("error");
       setMessage(error instanceof Error ? error.message : "Unable to load dashboard.");
@@ -353,13 +363,16 @@ function App() {
     }
   }
 
-  async function loadStocks() {
+  async function loadStocks(nextPage = stockPage, nextPageSize = stockPageSize) {
     setIsBusy(true);
     setMessage("");
 
     try {
-      const result = await getStocks();
+      const result = await getStocks(nextPage, nextPageSize);
       setStocks(result.stocks);
+      setStockTotalCount(result.totalCount);
+      setStockPage(result.page);
+      setStockPageSize(result.pageSize);
     } catch (error) {
       setMessageType("error");
       setMessage(error instanceof Error ? error.message : "Unable to load stocks.");
@@ -430,7 +443,7 @@ function App() {
       setStockSearchResults([]);
       setMessageType("success");
       setMessage(stockForm.id ? "Stock updated." : "Stock saved.");
-      await loadStocks();
+      await loadStocks(stockPage, stockPageSize);
     } catch (error) {
       setMessageType("error");
       setMessage(error instanceof Error ? error.message : "Unable to save stock.");
@@ -460,7 +473,9 @@ function App() {
 
     try {
       await deleteStock(stock.stockId);
-      setStocks((current) => current.filter((item) => item.stockId !== stock.stockId));
+      const nextTotalCount = Math.max(0, stockTotalCount - 1);
+      const nextPage = Math.min(stockPage, Math.max(1, Math.ceil(nextTotalCount / stockPageSize)));
+      await loadStocks(nextPage, stockPageSize);
       setMessageType("success");
       setMessage("Stock removed.");
     } catch (error) {
@@ -580,13 +595,16 @@ function App() {
     void loadStockChart(chartStock, range);
   }
 
-  async function loadTradePlans() {
+  async function loadTradePlans(nextPage = tradePlanPage, nextPageSize = tradePlanPageSize) {
     setIsBusy(true);
     setMessage("");
 
     try {
-      const result = await getTradePlans();
+      const result = await getTradePlans(nextPage, nextPageSize);
       setTradePlans(result.tradePlans);
+      setTradePlanTotalCount(result.totalCount);
+      setTradePlanPage(result.page);
+      setTradePlanPageSize(result.pageSize);
     } catch (error) {
       setMessageType("error");
       setMessage(error instanceof Error ? error.message : "Unable to load trade plans.");
@@ -657,7 +675,7 @@ function App() {
       setTradePlanStockSearchResults([]);
       setMessageType("success");
       setMessage(tradePlanForm.id ? "Trade plan updated." : "Trade plan created.");
-      await loadTradePlans();
+      await loadTradePlans(tradePlanPage, tradePlanPageSize);
     } catch (error) {
       setMessageType("error");
       setMessage(error instanceof Error ? error.message : "Unable to save trade plan.");
@@ -752,10 +770,12 @@ function App() {
 
     try {
       await deleteTradePlan(id);
-      setTradePlans((current) => current.filter((tradePlan) => tradePlan.id !== id));
       if (tradePlanForm.id === id) {
         setTradePlanForm(emptyTradePlan);
       }
+      const nextTotalCount = Math.max(0, tradePlanTotalCount - 1);
+      const nextPage = Math.min(tradePlanPage, Math.max(1, Math.ceil(nextTotalCount / tradePlanPageSize)));
+      await loadTradePlans(nextPage, tradePlanPageSize);
       setMessageType("success");
       setMessage("Trade plan removed.");
     } catch (error) {
@@ -832,8 +852,12 @@ function App() {
     setManualOrderForm(emptyManualOrderForm);
     setTotalProfitLoss(0);
     setStocks([]);
+    setStockPage(1);
+    setStockTotalCount(0);
     setStockForm(emptyStockForm);
     setTradePlans([]);
+    setTradePlanPage(1);
+    setTradePlanTotalCount(0);
     setTradePlanForm(emptyTradePlan);
     setPage("dashboard");
   }, []);
@@ -1145,6 +1169,34 @@ function App() {
                 </article>
               ))}
             </div>
+            <div className="pagination-bar">
+              <span>
+                {stockTotalCount === 0 ? "No stocks" : `Page ${stockPage} of ${stockPageCount} - ${stockTotalCount} stocks`}
+              </span>
+              <label>
+                Rows
+                <select value={stockPageSize} onChange={(event) => void loadStocks(1, Number(event.target.value))}>
+                  {pageSizeOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="pagination-actions">
+                <button type="button" className="secondary" onClick={() => void loadStocks(stockPage - 1, stockPageSize)} disabled={isBusy || stockPage <= 1}>
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => void loadStocks(stockPage + 1, stockPageSize)}
+                  disabled={isBusy || stockPage >= stockPageCount}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         </section>
       )}
@@ -1337,6 +1389,41 @@ function App() {
                 </div>
               </article>
             ))}
+          </div>
+          <div className="pagination-bar">
+            <span>
+              {tradePlanTotalCount === 0
+                ? "No trade plans"
+                : `Page ${tradePlanPage} of ${tradePlanPageCount} - ${tradePlanTotalCount} trade plans`}
+            </span>
+            <label>
+              Rows
+              <select value={tradePlanPageSize} onChange={(event) => void loadTradePlans(1, Number(event.target.value))}>
+                {pageSizeOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="pagination-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => void loadTradePlans(tradePlanPage - 1, tradePlanPageSize)}
+                disabled={isBusy || tradePlanPage <= 1}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => void loadTradePlans(tradePlanPage + 1, tradePlanPageSize)}
+                disabled={isBusy || tradePlanPage >= tradePlanPageCount}
+              >
+                Next
+              </button>
+            </div>
           </div>
         </section>
       )}
