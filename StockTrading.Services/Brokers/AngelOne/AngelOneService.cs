@@ -756,7 +756,11 @@ public class AngelOneService : IBrokerService
                 };
             })
             .Where(item => !string.IsNullOrWhiteSpace(item.SymbolToken) &&
-                           IsBeSeries(item.TradingSymbol))
+                           IsSupportedEquitySeries(item.TradingSymbol))
+            .GroupBy(item => $"{item.Exchange}|{item.Symbol}".ToUpperInvariant())
+            .Select(group => group
+                .OrderBy(item => GetEquitySeriesPreference(item.TradingSymbol))
+                .First())
             .ToList();
     }
 
@@ -949,9 +953,25 @@ public class AngelOneService : IBrokerService
                 : tradingSymbol;
     }
 
-    private static bool IsBeSeries(string tradingSymbol)
+    private static bool IsSupportedEquitySeries(string tradingSymbol)
     {
-        return tradingSymbol.EndsWith("-BE", StringComparison.OrdinalIgnoreCase);
+        return tradingSymbol.EndsWith("-EQ", StringComparison.OrdinalIgnoreCase) ||
+               tradingSymbol.EndsWith("-BE", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int GetEquitySeriesPreference(string tradingSymbol)
+    {
+        if (tradingSymbol.EndsWith("-EQ", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0;
+        }
+
+        if (tradingSymbol.EndsWith("-BE", StringComparison.OrdinalIgnoreCase))
+        {
+            return 1;
+        }
+
+        return 2;
     }
 
     private static int GetJsonInt(JsonElement element)

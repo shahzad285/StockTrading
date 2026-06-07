@@ -553,6 +553,24 @@ function App() {
     setStockDetails(null);
   }
 
+  function createTradePlanFromStock(stock: StockListItem) {
+    setTradePlanForm({
+      ...emptyTradePlan,
+      stockId: stock.stockId || undefined,
+      symbol: stock.symbol,
+      name: stock.name ?? null,
+      exchange: stock.exchange || "NSE",
+      symbolToken: stock.symbolToken,
+      tradingSymbol: stock.tradingSymbol || stock.symbol
+    });
+    setTradePlanStockSearch(stock.tradingSymbol || stock.symbol);
+    setTradePlanStockSearchResults([]);
+    setTradePlanDetails(null);
+    setStockDetails(null);
+    setPage("tradeplans");
+    setMessage("");
+  }
+
   function handleChartRangeChange(range: StockChartRange) {
     if (!chartStock) {
       return;
@@ -1410,9 +1428,14 @@ function App() {
                 <p className="eyebrow">{stockDetails.exchange}</p>
                 <h2>{stockDetails.tradingSymbol || stockDetails.symbol}</h2>
               </div>
-              <button type="button" className="secondary" onClick={closeStockDetails}>
-                Close
-              </button>
+              <div className="topbar-actions">
+                <button type="button" onClick={() => createTradePlanFromStock(stockDetails)}>
+                  Add Trade Plan
+                </button>
+                <button type="button" className="secondary" onClick={closeStockDetails}>
+                  Close
+                </button>
+              </div>
             </div>
 
             <div className="stock-detail-grid">
