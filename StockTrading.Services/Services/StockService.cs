@@ -18,7 +18,7 @@ public sealed class StockService(
         int pageSize,
         CancellationToken cancellationToken = default)
     {
-        return stockRepository.GetPageAsync(page, pageSize, cancellationToken);
+        return stockRepository.GetAsync(page, pageSize, cancellationToken);
     }
 
     public Task<Stock> SaveStockAsync(SaveStockRequest request, CancellationToken cancellationToken = default)
@@ -76,7 +76,7 @@ public sealed class StockService(
 
     public async Task<List<StockPrice>> GetConfiguredPricesAsync(CancellationToken cancellationToken = default)
     {
-        var stocks = await stockRepository.GetAllAsync(cancellationToken);
+        var stocks = (await stockRepository.GetAsync(pageSize: 0, cancellationToken: cancellationToken)).Items;
         return await marketDataCacheService.GetPricesAsync(
             stocks,
             stocks => brokerService.GetPricesAsync(stocks),
@@ -102,7 +102,7 @@ public sealed class StockService(
 
     public async Task<List<StockPrice>> RefreshConfiguredPricesAsync(CancellationToken cancellationToken = default)
     {
-        var tradePlans = await tradePlanRepository.GetAllAsync(cancellationToken);
+        var tradePlans = (await tradePlanRepository.GetAsync(pageSize: 0, cancellationToken: cancellationToken)).Items;
         var stocks = tradePlans
             .GroupBy(tradePlan => tradePlan.StockId)
             .Select(group => group.First())

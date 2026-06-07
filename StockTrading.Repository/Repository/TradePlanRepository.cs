@@ -8,49 +8,16 @@ namespace StockTrading.Repository.Repository;
 
 public sealed class TradePlanRepository(IDbConnectionFactory connectionFactory) : ITradePlanRepository
 {
-    public async Task<IReadOnlyList<TradePlan>> GetAllAsync(CancellationToken cancellationToken = default)
-    {
-        await using var connection = await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
-        var tradePlans = await connection.QueryAsync<TradePlan>(
-            """
-            select
-                trade_plans.id as Id,
-                trade_plans.stock_id as StockId,
-                trade_plans.buy_price as BuyPrice,
-                trade_plans.sell_price as SellPrice,
-                trade_plans.max_stocks_allowed as MaxStocksAllowed,
-                trade_plans.is_active as IsActive,
-                trade_plans.repeat_enabled as RepeatEnabled,
-                trade_plans.buy_trigger_count as BuyTriggerCount,
-                trade_plans.sell_trigger_count as SellTriggerCount,
-                trade_plans.last_buy_triggered_at_utc as LastBuyTriggeredAtUtc,
-                trade_plans.last_sell_triggered_at_utc as LastSellTriggeredAtUtc,
-                trade_plans.created_at_utc as CreatedAtUtc,
-                trade_plans.updated_at_utc as UpdatedAtUtc,
-                stocks.symbol as Symbol,
-                stocks.name as Name,
-                stocks.exchange as Exchange,
-                stocks.symbol_token as SymbolToken,
-                stocks.trading_symbol as TradingSymbol
-            from trade_plans
-            join stocks
-              on stocks.id = trade_plans.stock_id
-            order by trade_plans.created_at_utc desc
-            """);
-
-        return tradePlans.ToArray();
-    }
-
-    public async Task<PagedResult<TradePlan>> GetPageAsync(
+    public async Task<PagedResult<TradePlan>> GetAsync(
         int page,
         int pageSize,
         CancellationToken cancellationToken = default)
     {
         page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        pageSize = pageSize == 0 ? 0 : Math.Clamp(pageSize, 1, 100);
 
         await using var connection = await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
-        var tradePlans = await connection.QueryAsync<TradePlan>(
+        var sql =
             """
             select
                 trade_plans.id as Id,
@@ -75,8 +42,17 @@ public sealed class TradePlanRepository(IDbConnectionFactory connectionFactory) 
             join stocks
               on stocks.id = trade_plans.stock_id
             order by trade_plans.created_at_utc desc
+            """;
+        if (pageSize > 0)
+        {
+            sql += """
+
             limit @PageSize offset @Offset
-            """,
+            """;
+        }
+
+        var tradePlans = await connection.QueryAsync<TradePlan>(
+            sql,
             new
             {
                 PageSize = pageSize,

@@ -8,65 +8,16 @@ namespace StockTrading.Repository.Repository;
 
 public sealed class StockRepository(IDbConnectionFactory connectionFactory) : IStockRepository
 {
-    public async Task<IReadOnlyList<StockListItem>> GetAllAsync(CancellationToken cancellationToken = default)
-    {
-        await using var connection = await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
-        var stocks = await connection.QueryAsync<StockListItem>(
-            """
-            select
-                stocks.id as StockId,
-                stocks.symbol as Symbol,
-                stocks.name as Name,
-                stocks.exchange as Exchange,
-                stocks.symbol_token as SymbolToken,
-                stocks.trading_symbol as TradingSymbol,
-                stocks.holding_quantity as HoldingQuantity,
-                coalesce(stock_profiles.asset_type, 'Unknown') as AssetType,
-                stock_profiles.theme as Theme,
-                stock_profiles.sector as Sector,
-                stock_profiles.industry as Industry,
-                stock_profiles.classification_reason as ClassificationReason,
-                stock_profiles.confidence_score as ConfidenceScore,
-                stock_profiles.description as Description,
-                coalesce(stock_profiles.updated_by_nse, false) as UpdatedByNse,
-                coalesce(stock_profiles.updated_by_yahoo, false) as UpdatedByYahoo,
-                coalesce(stock_profiles.updated_by_tapetide, false) as UpdatedByTapetide,
-                stock_profiles.dividend_yield as DividendYield,
-                stock_profiles.growth_rate as GrowthRate,
-                stock_profiles.debt_to_equity as DebtToEquity,
-                stock_profiles.pe_ratio as PERatio,
-                stock_profiles.earnings_per_share as EarningsPerShare,
-                stock_profiles.price_to_book as PriceToBook,
-                stock_profiles.total_revenue / 10000000 as TotalRevenue,
-                stock_profiles.net_income / 10000000 as NetIncome,
-                stock_profiles.total_debt / 10000000 as TotalDebt,
-                stock_profiles.total_cash / 10000000 as TotalCash,
-                stock_profiles.cash_flow / 10000000 as CashFlow,
-                stock_profiles.market_cap as MarketCap,
-                coalesce(stock_profiles.stock_category, 'Unknown') as StockCategory,
-                stock_profiles.stock_category_reason as StockCategoryReason,
-                stock_profiles.stock_category_confidence as StockCategoryConfidence,
-                stock_profiles.stock_category_updated_at_utc as StockCategoryUpdatedAtUtc,
-                stock_profiles.last_analyzed_at_utc as LastAnalyzedAtUtc
-            from stocks
-            left join stock_profiles
-              on stock_profiles.stock_id = stocks.id
-            order by stocks.exchange, stocks.symbol
-            """);
-
-        return stocks.ToArray();
-    }
-
-    public async Task<PagedResult<StockListItem>> GetPageAsync(
+    public async Task<PagedResult<StockListItem>> GetAsync(
         int page,
         int pageSize,
         CancellationToken cancellationToken = default)
     {
         page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        pageSize = pageSize == 0 ? 0 : Math.Clamp(pageSize, 1, 100);
 
         await using var connection = await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
-        var stocks = await connection.QueryAsync<StockListItem>(
+        var sql =
             """
             select
                 stocks.id as StockId,
@@ -107,8 +58,17 @@ public sealed class StockRepository(IDbConnectionFactory connectionFactory) : IS
             left join stock_profiles
               on stock_profiles.stock_id = stocks.id
             order by stocks.exchange, stocks.symbol
+            """;
+        if (pageSize > 0)
+        {
+            sql += """
+
             limit @PageSize offset @Offset
-            """,
+            """;
+        }
+
+        var stocks = await connection.QueryAsync<StockListItem>(
+            sql,
             new
             {
                 PageSize = pageSize,

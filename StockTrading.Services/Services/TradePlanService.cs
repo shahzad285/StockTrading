@@ -7,17 +7,12 @@ namespace StockTrading.Services;
 
 public sealed class TradePlanService(ITradePlanRepository tradePlanRepository) : ITradePlanService
 {
-    public Task<IReadOnlyList<TradePlan>> GetAllAsync(CancellationToken cancellationToken = default)
-    {
-        return tradePlanRepository.GetAllAsync(cancellationToken);
-    }
-
-    public Task<PagedResult<TradePlan>> GetPageAsync(
+    public Task<PagedResult<TradePlan>> GetAsync(
         int page,
         int pageSize,
         CancellationToken cancellationToken = default)
     {
-        return tradePlanRepository.GetPageAsync(page, pageSize, cancellationToken);
+        return tradePlanRepository.GetAsync(page, pageSize, cancellationToken);
     }
 
     public Task<TradePlan> SaveAsync(TradePlan tradePlan, CancellationToken cancellationToken = default)

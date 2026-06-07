@@ -16,7 +16,7 @@ public sealed class TradePlanExecutionService(
 {
     public async Task ExecuteAsync(CancellationToken cancellationToken = default)
     {
-        var tradePlans = (await tradePlanService.GetAllAsync(cancellationToken))
+        var tradePlans = (await tradePlanService.GetAsync(pageSize: 0, cancellationToken: cancellationToken)).Items
             .Where(tradePlan => tradePlan.IsActive)
             .ToArray();
         if (tradePlans.Length == 0)
