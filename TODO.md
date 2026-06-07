@@ -8,8 +8,7 @@
 ## Later
 
 - Add realtime or near-realtime price updates for trade plans.
-- Add backend monitoring for trade plans so planned trades can be checked even when the browser is closed.
-- Consider SignalR for live frontend updates after backend monitoring exists.
+- Consider SignalR for live frontend updates.
 - Improve stock search with a local instrument master or fallback search strategy.
 - Track Angel One JWT and refresh token expiry times in broker session storage.
 - Research an API/source for identifying Islamically allowed/Shariah-compliant stocks in India.
@@ -38,11 +37,12 @@
 - Made chart availability decision for Trade Plan rows.
 - Added 1-day app login JWT expiry.
 - Removed the Watchlist workflow and kept Stock Master plus Trade Plan as the active stock workflows.
+- Added backend trade-plan monitoring/execution through `TradePlanExecutionWorker`.
 
 ## Current Notes
 
-- Background jobs currently registered: `StockPricePollingWorker` and `StockFundamentalsPollingWorker`.
+- Background jobs currently registered: `StockPricePollingWorker`, `StockFundamentalsPollingWorker`, `OrderStatusTrackingWorker`, and `TradePlanExecutionWorker`.
 - `StockPricePollingWorker` refreshes saved Stock Master prices in Angel One quote batches of up to 50 instruments.
 - `StockFundamentalsPollingWorker` now selects from the full `stocks` table when profile data is missing or incomplete.
-- Trade plans can be created, listed, updated, and deleted, but backend trade-plan price checking/execution is not implemented yet.
+- Trade plans can be created, listed, updated, deleted, and monitored by the backend for price-triggered execution.
 - SmartAPI historical candle calls should be treated as limited-result requests; 1-minute candles likely need small date chunks.
