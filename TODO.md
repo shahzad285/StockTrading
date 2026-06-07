@@ -10,6 +10,7 @@
 - Add realtime or near-realtime price updates for trade plans.
 - Consider SignalR for live frontend updates.
 - Improve stock search with a local instrument master or fallback search strategy.
+- Add BSE official website/company profile support as a fundamentals source for BSE-only stocks.
 - Track Angel One JWT and refresh token expiry times in broker session storage.
 - Research an API/source for identifying Islamically allowed/Shariah-compliant stocks in India.
 - Add chunked historical candle fetching if charts need more than the current single SmartAPI candle request can reliably return.
