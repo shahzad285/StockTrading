@@ -17,7 +17,6 @@ public class AngelOneService : IBrokerService
     private readonly ICacheService _cacheService;
     private readonly IBrokerSessionStore _brokerSessionStore;
     private readonly string _apiKey;
-    private readonly string _secretKey;
     private readonly string _clientCode;
     private readonly string _password;
     private readonly string _clientLocalIP;
@@ -42,7 +41,6 @@ public class AngelOneService : IBrokerService
 
         // Get credentials from appsettings
         _apiKey = _config["AngelOne:ApiKey"] ?? "";
-        _secretKey = _config["AngelOne:SecretKey"] ?? "";
         _clientCode = _config["AngelOne:ClientCode"] ?? "";
         _password = _config["AngelOne:Password"] ?? "";
         _clientLocalIP = _config["AngelOne:ClientLocalIP"] ?? "";
@@ -63,7 +61,6 @@ public class AngelOneService : IBrokerService
         _httpClient.DefaultRequestHeaders.Add("X-ClientPublicIP", _clientPublicIP);
         _httpClient.DefaultRequestHeaders.Add("X-MACAddress", _macAddress);
         _httpClient.DefaultRequestHeaders.Add("X-PrivateKey", _apiKey);
-        _httpClient.DefaultRequestHeaders.Add("X-SecretKey", _secretKey);
 
         if (!string.IsNullOrEmpty(token))
         {
